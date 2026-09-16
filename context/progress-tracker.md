@@ -20,11 +20,19 @@ Set up the tech stack (Next.js 16, Neon + Better Auth, Quran data loader) and cr
 
 ## In Progress
 
-- None yet (awaiting next build session)
+- Phase 1 workspace foundation is implemented as a demo: sample Quran data, deterministic analysis utilities, and connected research workspace UI.
+
+- Production persistence, Better Auth, and AI SDK wiring remain for the next implementation milestone.
 
 ## Next Up
 
-### Phase 1: Project Foundation (Sessions 1–2)
+### Phase 1: Project Foundation (Sessions 1–2) — Demo foundation complete
+
+- Added `/workspace` three-panel research workspace with connected verse selection, search, prompt interactions, and computed evidence.
+- Added immutable sample Quran records in `lib/quran/sample-data.ts`.
+- Added deterministic Arabic normalization and letter/word analysis in `lib/quran/analysis.ts`.
+
+### Phase 1 Production Follow-up
 
 1. **Initialize Tech Stack**
    - Set up Next.js 16 with TypeScript, Tailwind, shadcn/ui
