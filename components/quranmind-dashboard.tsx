@@ -1,0 +1,37 @@
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { BookOpen, BrainCircuit, ChartNoAxesCombined, FlaskConical, FolderKanban, Home, LibraryBig, LogOut, Menu, Settings, Sparkles, Star, X } from 'lucide-react'
+import { useState } from 'react'
+
+const tabs = [
+  { href: '/dashboard', label: 'الرئيسية', icon: Home },
+  { href: '/dashboard/quran', label: 'القرآن الكريم', icon: BookOpen },
+  { href: '/dashboard/analysis', label: 'تحليل علمي', icon: FlaskConical },
+  { href: '/dashboard/assistant', label: 'الوكيل الذكي', icon: BrainCircuit },
+  { href: '/dashboard/projects', label: 'المشاريع البحثية', icon: FolderKanban },
+  { href: '/dashboard/library', label: 'المكتبة العلمية', icon: LibraryBig },
+  { href: '/dashboard/statistics', label: 'الإحصائيات', icon: ChartNoAxesCombined },
+  { href: '/dashboard/settings', label: 'الإعدادات', icon: Settings },
+]
+
+export function QuranMindDashboard({ children, title = 'مساحة العمل' }: { children: React.ReactNode; title?: string }) {
+  const pathname = usePathname()
+  const [open, setOpen] = useState(false)
+  return <div className="qm-dashboard" dir="rtl">
+    <button className="qm-mobile-toggle" onClick={() => setOpen(!open)} aria-label="فتح القائمة">{open ? <X /> : <Menu />}</button>
+    <aside className={`qm-sidebar ${open ? 'is-open' : ''}`}>
+      <div className="qm-brand"><div className="qm-brand-mark"><Sparkles /></div><div><strong>Quran<span>Mind</span></strong><small>القرآن · علم · حقيقة</small></div></div>
+      <nav className="qm-nav" aria-label="تنقل لوحة التحكم">{tabs.map(({ href, label, icon: Icon }) => <Link key={href} href={href} onClick={() => setOpen(false)} className={pathname === href ? 'active' : ''}><Icon />{label}</Link>)}</nav>
+      <div className="qm-projects"><div className="qm-section-label">المشاريع الحالية <span>⌃</span></div>{['معجزة التناظر في القرآن','الحقائق العلمية في القرآن','العدد والأرقام في القرآن','دلالات الحروف والكلمات'].map((item, index) => <Link href="/dashboard/projects" key={item}><i className={`dot dot-${index}`} />{item}</Link>)}<Link href="/dashboard/projects" className="new-project">+ مشروع جديد</Link></div>
+      <div className="qm-sidebar-quote">{`{ سَنُرِيهِمْ آيَاتِنَا فِي الْآفَاقِ وَفِي أَنفُسِهِمْ }`}<small>فصلت: 53</small></div>
+      <Link href="/" className="qm-logout"><LogOut />العودة للموقع</Link>
+    </aside>
+    <main className="qm-main"><header className="qm-topbar"><div className="qm-search">⌕ <span>ابحث في الآيات، الكلمات، التحليلات، أو اطرح سؤالاً...</span></div><div className="qm-user"><span><strong>راشد علي</strong><small>باحث ومهتم بالقرآن والعلم</small></span><div className="qm-avatar">ر</div></div></header><div className="qm-content"><div className="qm-page-heading"><div><span className="qm-eyebrow">مساحة العمل البحثية</span><h1>{title}</h1></div><span className="qm-status"><i /> النظام متصل</span></div>{children}</div></main>
+    <style jsx global>{`.qm-dashboard{min-height:100vh;background:#020e1d;color:#dceeff;display:flex;font-family:var(--font-cairo),Tahoma,sans-serif}.qm-sidebar{position:fixed;inset:0 auto 0 0;width:260px;background:#031426;border-right:1px solid #123554;padding:18px 14px;display:flex;flex-direction:column;gap:18px;z-index:20}.qm-brand{display:flex;align-items:center;gap:10px;padding:4px 10px 18px;border-bottom:1px solid #12304d}.qm-brand-mark{color:#13c5ee;border:1px solid #087a9d;border-radius:12px;padding:8px;display:grid;place-items:center}.qm-brand strong{font-size:21px;color:#f2f8ff}.qm-brand strong span{color:#12c3f2}.qm-brand small,.qm-user small{display:block;color:#7894ae;font-size:10px;margin-top:3px}.qm-nav{display:flex;flex-direction:column;gap:4px}.qm-nav a,.qm-projects a,.qm-logout{display:flex;align-items:center;gap:11px;color:#a9c0d6;text-decoration:none;border-radius:9px;padding:10px;font-size:13px}.qm-nav a svg,.qm-logout svg{width:18px}.qm-nav a.active,.qm-nav a:hover{color:#12c7f3;background:linear-gradient(90deg,#07365d,#062747);border-right:2px solid #13c5ee}.qm-section-label{font-size:12px;color:#dceeff;padding:8px 10px}.qm-section-label span{float:left;color:#7e9ab3}.qm-projects{border-top:1px solid #12304d;padding-top:8px}.qm-projects a{font-size:11px}.dot{width:8px;height:8px;border-radius:50%;background:#19b787}.dot-1{background:#8d54db}.dot-2{background:#c78d35}.dot-3{background:#268fe2}.new-project{border:1px solid #12618c;justify-content:center;margin-top:7px;color:#84d8f5!important}.qm-sidebar-quote{margin-top:auto;background:linear-gradient(140deg,#062648,#041320);border:1px solid #174263;border-radius:10px;padding:16px;font-size:11px;line-height:1.9;color:#c8e7f9}.qm-sidebar-quote small{display:block;color:#6f98b2}.qm-logout{border-top:1px solid #12304d;border-radius:0;padding-top:15px}.qm-main{margin-left:260px;width:calc(100% - 260px)}.qm-topbar{height:70px;border-bottom:1px solid #12304d;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:#031426}.qm-search{width:min(600px,60%);background:#0a2746;border:1px solid #17476b;border-radius:10px;padding:10px 15px;color:#5f9bc0}.qm-search span{font-size:12px;color:#83a1b9;margin-right:10px}.qm-user{display:flex;align-items:center;gap:10px;text-align:left}.qm-user strong{font-size:12px}.qm-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#1bb9eb,#0d4c87);display:grid;place-items:center;color:#fff;font-weight:bold}.qm-content{padding:28px;max-width:1500px;margin:auto}.qm-page-heading{display:flex;justify-content:space-between;align-items:end;margin-bottom:22px}.qm-eyebrow{color:#12bfe9;font-size:12px}.qm-page-heading h1{margin:4px 0 0;font-size:28px;color:#f4f9ff}.qm-status{color:#54d68c;font-size:11px}.qm-status i{display:inline-block;width:7px;height:7px;background:#49d68a;border-radius:50%;margin-left:5px}.qm-mobile-toggle{display:none}.qm-card{background:linear-gradient(145deg,#061c34,#041426);border:1px solid #16446b;border-radius:12px;padding:20px}.qm-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.qm-grid-wide{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:16px}.qm-card h2,.qm-card h3{margin:0 0 15px;color:#f1f7ff;font-size:16px}.qm-muted{color:#8ba9c2;font-size:12px}.qm-stat{font-size:28px;color:#fff;margin-top:8px}.qm-stat-label{color:#7298b5;font-size:11px}.qm-list{display:flex;flex-direction:column;gap:10px}.qm-list-item{border:1px solid #153c5e;background:#061a2d;border-radius:9px;padding:12px;display:flex;justify-content:space-between;align-items:center;font-size:12px}.qm-badge{color:#5ae1ae;font-size:10px;background:#0a3b3a;padding:4px 8px;border-radius:20px}@media(max-width:850px){.qm-sidebar{transform:translateX(-100%);transition:.2s}.qm-sidebar.is-open{transform:translateX(0)}.qm-main{margin-left:0;width:100%}.qm-mobile-toggle{display:grid;position:fixed;top:15px;left:15px;z-index:30;background:#0b3152;color:#fff;border:1px solid #236087;border-radius:8px;padding:8px}.qm-topbar{padding:0 65px 0 18px}.qm-user{display:none}.qm-search{width:100%}.qm-content{padding:20px 14px}.qm-grid,.qm-grid-wide{grid-template-columns:1fr}.qm-page-heading h1{font-size:22px}}`}</style>
+  </div>
+}
+
+export const dashboardTabs = tabs
+export const dashboardMock = { stats: [{ label: 'آية محللة', value: '2,847' }, { label: 'حقيقة علمية موثقة', value: '184' }, { label: 'مشروع بحثي', value: '12' }], recent: ['تحليل التناظر في سورة الفلك', 'دراسة العدد 7 في القرآن', 'مقارنة دلائل الخلق'] }
