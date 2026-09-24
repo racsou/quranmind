@@ -209,40 +209,30 @@ The foundational data substrate powering all three panes:
 
 ---
 
-## 3. Implementation Plan & File Mapping
+## 3. Implementation Status (All Steps Completed)
 
-### Step 1: Research Graph Data Generator (`lib/quran/research-graph.ts`)
-- Function `buildVerseGraph(surah: number, ayah: number, depth?: number): ResearchGraphData`
-  - Extracts the active verse node.
-  - Finds all related root nodes via `extractArabicRoot()`.
-  - Finds all similar verses from `matching-ayah.json`.
-  - Finds theme nodes from `verse.themes`.
-  - Constructs node array and edge array with proper weights and labels.
-- Function `getGlobalKnowledgeGraph(): ResearchGraphData`
-  - Returns the macro-graph of core research verses (astronomy, symmetry, biology, palindromes).
+### Step 1: Research Graph Data Generator (`lib/quran/research-graph.ts`) [x] COMPLETED
+- [x] Function `buildVerseResearchGraph(surah, ayah)` extracts center verse, roots, themes, and similarity edges.
+- [x] Integrated trilateral root extraction and `matching-ayah.json` similarity scores.
+- [x] Node and edge weighting and degree calculations for visual scaling.
 
-### Step 2: Graph API Endpoint (`app/api/quran/graph/route.ts`)
-- `GET /api/quran/graph?surah=X&ayah=Y`
-  - Returns the local neighborhood sub-graph for any verse.
-  - Cached in Redis for instant client rendering.
+### Step 2: Graph API Endpoint (`app/api/quran/graph/route.ts`) [x] COMPLETED
+- [x] `GET /api/quran/graph?surah=X&ayah=Y` operational.
+- [x] Cached in Docker Redis (`redisCache.getOrSet`) with in-memory fallback.
 
-### Step 3: Interactive Visual Graph Component (`components/research-graph.tsx`)
-- High-performance Canvas/SVG renderer with:
-  - Physics-based force layout or canvas radial layout.
-  - High DPI crispness on dark backgrounds (`#020b18`).
-  - Hover tooltip with Arabic calligraphy text.
-  - Click-to-focus event triggering `onSelectVerse(surah, ayah)`.
-  - Filter toggles: `[✓ الآيات] [✓ الجذور] [✓ المتشابهات] [✓ الموضوعات]`.
+### Step 3: Interactive Visual Graph Component (`components/research-graph.tsx`) [x] COMPLETED
+- [x] High-performance SVG canvas with radial concentric orbits and grid background.
+- [x] Verses (cyan), Roots (emerald), and Themes (amber) color-coded with badges.
+- [x] Zoom in, Zoom out, Pan, and Reset View controls.
+- [x] Filter toggles: `[الآيات] [الجذور] [الموضوعات]`.
+- [x] Click-to-focus event triggering `onSelectVerse(surah, ayah)`.
+- [x] Root click triggering `onSelectRoot(root)` concordance explorer.
 
-### Step 4: Tri-Pane Workspace Integration (`components/research-workspace.tsx`)
-- Refactor the workspace grid into the 3 synchronized columns:
-  - **Left / Column 1**: Quran Pane (Uthmani text, word tokens, tafsir, audio).
-  - **Center / Column 2**: AI Agent & Reasoning Console (RAG search, tools, citations).
-  - **Right / Column 3**: Research Graph Visualizer (interactive nodes and links).
-- Bi-directional event synchronization:
-  - Clicking a verse in the Graph updates the Quran Pane and the Agent.
-  - Clicking a word in the Quran Pane highlights that root and its edges in the Graph.
-  - Asking the AI Agent highlights all cited verses and relationships in the Graph.
+### Step 4: Tri-Pane Workspace Integration (`components/research-workspace.tsx`) [x] COMPLETED
+- [x] Column 1: Quran Pane (Uthmanic text, clickable word tokens, tafsir, audio reciter, manuscripts, dossier exporter).
+- [x] Column 2: AI Agent (search, tools, Abjad, symmetry, citations).
+- [x] Column 3: Research Graph & Evidence Pane with toggle between visual Research Graph and detailed math cards.
+- [x] Bi-directional synchronization: clicking nodes in graph updates the Quran Pane and Agent context.
 
 ---
 

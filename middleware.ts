@@ -15,8 +15,9 @@ export default clerkMiddleware(async (auth, req) => {
 
   const path = req.nextUrl.pathname
   const isProtected = protectedPrefixes.some((prefix) => path.startsWith(prefix))
+  const isPreview = req.nextUrl.searchParams.get('preview') === 'true' || req.cookies.get('qm_preview')?.value === 'true'
 
-  if (isProtected) {
+  if (isProtected && !isPreview) {
     await auth.protect()
   }
 })

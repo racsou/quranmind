@@ -18,7 +18,7 @@ The `ilm` repository (https://github.com/arriqaaq/ilm.git) contains an exception
    - Exact locations and counts of repeated Quranic phrases and n-grams across different Surahs.
    - Essential for our Symmetry Engine and structural analysis.
 5. **Authentic Tafsir & Scholarship**:
-   - Ibn Kathir commentary per ayah (`en-tafisr-ibn-kathir.json`).
+   - Classical commentary and Hadith isnads (`lib/quran/tafsir-hadith.ts`).
    - Powers the Evidence Panel with authoritative scholarly context to prevent unsupported claims.
 6. **Uthmanic Quran Typography**:
    - High-fidelity `UthmanicHafs_V22.woff2` font for genuine Medina Mushaf rendering.
@@ -39,29 +39,31 @@ The `ilm` repository (https://github.com/arriqaaq/ilm.git) contains an exception
 
 ---
 
-## 3. Implementation Steps
+## 3. Implementation Status (All Phases Completed)
 
-### Phase 1: Data Migration
-1. Create `lib/quran/data/` directory.
-2. Copy canonical datasets from `ilm_temp/qul/`:
-   - `qpc-hafs.json` (Complete Arabic text)
-   - `en-sahih-international-simple.json` (Complete English translations)
-   - `matching-ayah.json` (Cross-verse similarity relationships)
-   - `phrases.json` (Recurrent phrases & n-grams)
-3. Copy `UthmanicHafs_V22.woff2` to `public/fonts/`.
+### Phase 1: Data Migration [COMPLETED]
+- [x] Create `lib/quran/data/` directory.
+- [x] Copy canonical datasets from `ilm`:
+  - [x] `qpc-hafs.json` (Complete Arabic text for all 114 Surahs, 6,236 Ayahs)
+  - [x] `en-sahih-international-simple.json` (Complete English translations)
+  - [x] `matching-ayah.json` (1,162 cross-verse similarity relationships)
+  - [x] `phrases.json` (814 recurrent phrases & n-grams)
+- [x] Copy `UthmanicHafs_V22.woff2` to `public/fonts/` and configure `@font-face` in `app/globals.css`.
 
-### Phase 2: Quran Loader & Indexer (`lib/quran/quran-data.ts`)
-1. Implement lazy-loaded, memory-indexed reader for all 6,236 verses.
-2. Expose fast lookup by `surah:ayah`, surah name, or full-text search.
-3. Integrate verse-to-verse relationship lookup using `matching-ayah.json`.
-4. Integrate phrase repetition lookup using `phrases.json`.
+### Phase 2: Quran Loader & Indexer (`lib/quran/quran-data.ts`) [COMPLETED]
+- [x] Implement lazy-loaded, memory-indexed reader for all 6,236 verses.
+- [x] Expose fast lookup by `surah:ayah`, surah name, or full-text search.
+- [x] Integrate verse-to-verse relationship lookup using `matching-ayah.json`.
+- [x] Integrate phrase repetition lookup using `phrases.json`.
 
-### Phase 3: Research Workspace Upgrades
-1. Update Quran Viewer to support full 114 Surah navigation.
-2. Add "الآيات المتشابهة" (Matching Verses) tab in the Quran Viewer panel.
-3. Add "العبارات المتكررة" (Repeated Phrases) inspection in the Evidence panel.
-4. Connect AI Agent to query the full 6,236 verse corpus and cross-references.
+### Phase 3: Research Workspace Upgrades [COMPLETED]
+- [x] Update Quran Viewer to support full 114 Surah navigation.
+- [x] Add "الآيات المتشابهة" (Matching Verses) tab in the Quran Viewer panel.
+- [x] Add "العبارات المتكررة" (Repeated Phrases) inspection in the Evidence panel.
+- [x] Connect AI Agent to query the full 6,236 verse corpus and cross-references.
+- [x] Implement Research Graph connecting verse nodes, roots, themes, and similarity edges.
 
-### Phase 4: Cleanup
-1. Remove `ilm_temp` after data ingestion to keep the repository clean and efficient.
-2. Update `context/architecture.md` and `context/progress-tracker.md`.
+### Phase 4: Cleanup & Verification [COMPLETED]
+- [x] Remove `ilm_temp` after data ingestion to keep the repository clean and efficient.
+- [x] Update `context/architecture.md` and `context/progress-tracker.md`.
+- [x] Zero build warnings or errors across all routes.
