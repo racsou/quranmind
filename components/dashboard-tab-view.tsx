@@ -54,6 +54,7 @@ import { WordConcordanceModal } from '@/components/word-concordance-modal'
 import { DossierExportModal } from '@/components/dossier-export-modal'
 import { AudioReciter } from '@/components/audio-reciter'
 import { AdminDashboardView } from '@/components/admin-dashboard-view'
+import { UserSettingsView } from '@/components/user-settings-view'
 import {
   HADITH_CORPUS,
   classifyHadithBreadth,
@@ -1571,12 +1572,56 @@ export function DashboardTabView({ tab }: TabViewProps) {
       // 8. PUBLIC REST API & OPENAPI DOCS (Ilm Port)
       // ----------------------------------------------------
       case 'api-docs': {
-        const routes = [
-          { method: 'GET', path: '/v1/quran/ayah?surah=21&ayah=33', desc: 'تفاصيل الآية مع التحليل الصرفي والعددي' },
-          { method: 'GET', path: '/v1/quran/search?q=فلك&limit=5', desc: 'البحث الشامل في الـ 6,236 آية' },
-          { method: 'GET', path: '/v1/hadith?id=bukhari-1', desc: 'استعلام الأحاديث والمسالك الإسنادية' },
-          { method: 'GET', path: '/v1/mustalah/breadth?hadithId=bukhari-1', desc: 'تصنيف اتساع الحديث (متواتر/مشهور/عزيز/غريب)' },
-          { method: 'GET', path: '/v1/mustalah/corroboration?hadithId=bukhari-1', desc: 'رصد المتابعات والشواهد الإسنادية' },
+        const categories = [
+          { id: 'all', label: 'جميع النقاط (All)' },
+          { id: 'quran', label: 'القرآن الكريم (Quran)' },
+          { id: 'hadith', label: 'الحديث الشريف (Hadith)' },
+          { id: 'isnad', label: 'الرواة والإسناد (Isnad)' },
+          { id: 'mustalah', label: 'المصطلح والعوائل (Mustalah)' },
+          { id: 'search', label: 'البحث الشامل (Search)' },
+          { id: 'books', label: 'المكتبة والكتب (Books)' },
+          { id: 'meta', label: 'النظام والإحصاء (Meta)' },
+        ]
+
+        const allRoutes = [
+          // Quran
+          { category: 'quran', method: 'GET', path: '/v1/quran/surahs/1', desc: 'استعلام السورة بجميع آياتها (مثال الفاتحة)', curl: "curl 'http://localhost:3000/v1/quran/surahs/1' | jq '.surah.name_en, (.ayahs | length)'" },
+          { category: 'quran', method: 'GET', path: '/v1/quran/ayahs/2/255/words', desc: 'التحليل الصرفي كلمة بكلمة لآية الكرسي', curl: "curl 'http://localhost:3000/v1/quran/ayahs/2/255/words' | jq '.[0]'" },
+          { category: 'quran', method: 'GET', path: '/v1/quran/ayahs/36/40/similar', desc: 'الآيات المتشابهة (المتشابهات) لسورة يس: 40', curl: "curl 'http://localhost:3000/v1/quran/ayahs/36/40/similar'" },
+          { category: 'quran', method: 'GET', path: '/v1/quran/ayahs/36/40/tafsir', desc: 'التفاسير المعتمدة (ابن كثير والجلالين)', curl: "curl 'http://localhost:3000/v1/quran/ayahs/36/40/tafsir'" },
+          { category: 'quran', method: 'GET', path: '/v1/quran/ayahs/36/40/hadiths', desc: 'الأحاديث النبوية المفسرة للآية', curl: "curl 'http://localhost:3000/v1/quran/ayahs/36/40/hadiths'" },
+          { category: 'quran', method: 'GET', path: '/v1/quran/surahs', desc: 'قائمة السور الـ 114 مع تصنيفاتها', curl: "curl 'http://localhost:3000/v1/quran/surahs?limit=10'" },
+          { category: 'quran', method: 'GET', path: '/v1/quran/meta', desc: 'إحصائيات مجمل القرآن (السور، الآيات، المكي والمدني)', curl: "curl 'http://localhost:3000/v1/quran/meta'" },
+          { category: 'quran', method: 'GET', path: '/v1/quran/reciters', desc: 'القراء والتلاوات الصوتية وروابط الـ CDN', curl: "curl 'http://localhost:3000/v1/quran/reciters'" },
+
+          // Hadith
+          { category: 'hadith', method: 'GET', path: '/v1/hadiths/bukhari:1', desc: 'استعلام الحديث بالمعرف الدائم (bukhari:1)', curl: "curl 'http://localhost:3000/v1/hadiths/bukhari:1' | jq '.hadith.text_en'" },
+          { category: 'hadith', method: 'GET', path: '/v1/hadiths/bukhari:1/chain', desc: 'شبكة مسالك الإسناد والعقد الرابطة للحديث', curl: "curl 'http://localhost:3000/v1/hadiths/bukhari:1/chain' | jq '.nodes | length'" },
+          { category: 'hadith', method: 'GET', path: '/v1/hadiths/abudawud:1/gradings', desc: 'أحكام وأقوال أئمة الجرح والتعديل المتعددة', curl: "curl 'http://localhost:3000/v1/hadiths/abudawud:1/gradings' | jq '.gradings[] | {scholar_key, grade_normalized}'" },
+          { category: 'hadith', method: 'GET', path: '/v1/collections', desc: 'كتب ودواوين السنة المعتمدة (الكتب الستة والمسانيد)', curl: "curl 'http://localhost:3000/v1/collections'" },
+          { category: 'hadith', method: 'GET', path: '/v1/scholars', desc: 'أئمة ونقاد الحديث (البخاري، مسلم، ابن حجر، الذهبي)', curl: "curl 'http://localhost:3000/v1/scholars'" },
+
+          // Search
+          { category: 'search', method: 'GET', path: '/v1/search/all?q=patience&type=hybrid&limit=5', desc: 'البحث الهجين المتزامن بين القرآن والحديث', curl: "curl 'http://localhost:3000/v1/search/all?q=patience&type=hybrid&limit=5' | jq '{quran_count, hadith_count}'" },
+          { category: 'search', method: 'GET', path: '/v1/search/quran?q=فلك&limit=10', desc: 'البحث النصي الدقيق في آيات القرآن الكريم', curl: "curl 'http://localhost:3000/v1/search/quran?q=فلك&limit=10'" },
+          { category: 'search', method: 'GET', path: '/v1/search/hadith?q=نية&limit=10', desc: 'البحث في متون وأسانيد الأحاديث النبوية', curl: "curl 'http://localhost:3000/v1/search/hadith?q=نية&limit=10'" },
+
+          // Isnad & Narrators
+          { category: 'isnad', method: 'GET', path: '/v1/narrators?limit=10', desc: 'معجم الرواة الموثق مع رتب التوثيق', curl: "curl 'http://localhost:3000/v1/narrators?limit=10'" },
+          { category: 'isnad', method: 'GET', path: '/v1/narrators/umar_ibn_khattab', desc: 'السيرة الإسنادية لراوٍ محدد والمرويات المرتبطة', curl: "curl 'http://localhost:3000/v1/narrators/umar_ibn_khattab'" },
+
+          // Mustalah & Families
+          { category: 'mustalah', method: 'GET', path: '/v1/families', desc: 'عوائل الأحاديث المتقاربة في المعنى والمخرج', curl: "curl 'http://localhost:3000/v1/families'" },
+          { category: 'mustalah', method: 'GET', path: '/v1/families/fam-niyyah/mustalah', desc: 'تحقيق مصطلح الحديث (المتابعات والشواهد والاتساع)', curl: "curl 'http://localhost:3000/v1/families/fam-niyyah/mustalah'" },
+          { category: 'mustalah', method: 'GET', path: '/v1/mustalah/stats', desc: 'إحصائيات درجات اتساع الأحاديث في القاعدة', curl: "curl 'http://localhost:3000/v1/mustalah/stats'" },
+
+          // Books
+          { category: 'books', method: 'GET', path: '/v1/books?category=hadith_grading', desc: 'كتب التخريج والجرح والتعديل المعتمدة', curl: "curl 'http://localhost:3000/v1/books?category=hadith_grading' | jq '.[].name_en'" },
+          { category: 'books', method: 'GET', path: '/v1/books/104/pages?start=42&size=1', desc: 'استرجاع الصفحة الأصلية من كتاب فتح الباري', curl: "curl 'http://localhost:3000/v1/books/104/pages?start=42&size=1'" },
+
+          // Meta
+          { category: 'meta', method: 'GET', path: '/v1/config', desc: 'إعدادات المنظومة وقواعد معدل الطلبات (Rate Limits)', curl: "curl 'http://localhost:3000/v1/config'" },
+          { category: 'meta', method: 'GET', path: '/v1/stats', desc: 'الإحصائيات الشاملة لقاعدة البيانات المرقمنة', curl: "curl 'http://localhost:3000/v1/stats'" },
         ]
 
         async function handleRunApiTest(endpoint: string) {
@@ -1596,95 +1641,190 @@ export function DashboardTabView({ tab }: TabViewProps) {
 
         return (
           <div className="space-y-6" dir="rtl">
-            <div className="p-4 bg-[#03172b] border border-cyan-900/40 rounded-xl flex flex-wrap items-center justify-between gap-3">
+            {/* Top Documentation Header */}
+            <div className="p-5 bg-[#03172b] border border-cyan-900/50 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-xl">
               <div>
-                <span className="text-[10px] text-cyan-400 font-mono">OPENAPI 3.1 & REST API SUITE</span>
-                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-cyan-400 font-mono tracking-wider">REST API SPECIFICATION — ILM STANDARD</span>
+                  <span className="px-2 py-0.5 rounded text-[9px] bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
+                    v1.0 STABLE
+                  </span>
+                </div>
+                <h2 className="text-lg font-bold text-white flex items-center gap-2 mt-1">
                   <Network className="w-5 h-5 text-cyan-400" />
-                  توثيق الواجهة البرمجية المفتوحة (Public REST API /v1/*)
+                  توثيق الواجهة البرمجية العامة (Public REST API /v1/*)
                 </h2>
-                <p className="text-xs text-slate-400">
-                  واجهة برمجية معيارية للباحثين والمطورين لاستقراء نصوص القرآن، الجذور، والمصطلح الحديثي
+                <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                  واجهة برمجية مفتوحة ومجانية تتيح للباحثين والمطورين الوصول إلى نصوص القرآن، التحليل الصرفي، متون الأحاديث، سلاسل الأسانيد، أحكام الأئمة، والبحث الهجين.
                 </p>
               </div>
 
-              <a
-                href="/v1/openapi.json"
-                target="_blank"
-                rel="noreferrer"
-                className="px-4 py-2 bg-[#042444] hover:bg-cyan-900 border border-cyan-700/60 text-cyan-200 font-bold text-xs rounded-xl shadow transition flex items-center gap-1.5"
-              >
-                <Download className="w-4 h-4" />
-                <span>تحميل مواصفة OpenAPI 3.1 (JSON)</span>
-              </a>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Link
+                  href="/docs"
+                  target="_blank"
+                  className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-cyan-600/30 transition flex items-center gap-1.5"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>المستند التفاعلي الكامل (Scalar Docs)</span>
+                </Link>
+
+                <a
+                  href="/v1/openapi.json"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 bg-[#042444] hover:bg-[#073860] border border-cyan-700/60 text-cyan-200 font-bold text-xs rounded-xl shadow transition flex items-center gap-1.5"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>OpenAPI 3.1 JSON</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Quick Architecture Reference Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+              <div className="p-3.5 bg-[#031527] border border-cyan-900/40 rounded-xl space-y-1">
+                <span className="text-[10px] text-slate-400 block font-mono">BASE URL</span>
+                <strong className="text-cyan-300 font-mono text-xs block" dir="ltr">http://localhost:3000/v1</strong>
+                <p className="text-[10px] text-slate-400">البادئة المستقرة للإصدار الأول.</p>
+              </div>
+
+              <div className="p-3.5 bg-[#031527] border border-cyan-900/40 rounded-xl space-y-1">
+                <span className="text-[10px] text-slate-400 block font-mono">AUTHENTICATION</span>
+                <strong className="text-emerald-400 text-xs block">وصول عام مفتوح (Open)</strong>
+                <p className="text-[10px] text-slate-400">لا يتطلب مفاتيح أو ترويسات سرية.</p>
+              </div>
+
+              <div className="p-3.5 bg-[#031527] border border-cyan-900/40 rounded-xl space-y-1">
+                <span className="text-[10px] text-slate-400 block font-mono">RATE LIMITS</span>
+                <strong className="text-cyan-300 text-xs block font-mono">~60 req/min/IP</strong>
+                <p className="text-[10px] text-slate-400">10 req/min لنقاط استعلام الذكاء (Ask).</p>
+              </div>
+
+              <div className="p-3.5 bg-[#031527] border border-cyan-900/40 rounded-xl space-y-1">
+                <span className="text-[10px] text-slate-400 block font-mono">ID CONVENTIONS</span>
+                <strong className="text-white text-xs block font-mono" dir="ltr">&#123;code&#125;:&#123;number&#125;</strong>
+                <p className="text-[10px] text-slate-400">مثل bukhari:1 و /ayahs/2/255.</p>
+              </div>
             </div>
 
             {/* API Console Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
-              {/* Endpoints List (Col 5) */}
-              <div className="lg:col-span-5 space-y-3">
-                <span className="text-xs font-bold text-slate-400 block">نقاط النهاية المتاحة (Endpoints):</span>
-                {routes.map((r) => (
-                  <div
-                    key={r.path}
-                    onClick={() => handleRunApiTest(r.path)}
-                    className={`p-3 rounded-xl border transition cursor-pointer space-y-1 ${
-                      activeApiRoute === r.path
-                        ? 'bg-cyan-950/80 border-cyan-500 shadow-md'
-                        : 'bg-[#031527] border-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-mono text-xs">
-                      <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-bold text-[10px] border border-emerald-800/40">
-                        {r.method}
-                      </span>
-                      <span className="text-white truncate">{r.path}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400">{r.desc}</p>
-                  </div>
-                ))}
+              {/* Endpoints List with Quick Test & Curl (Col 6) */}
+              <div className="lg:col-span-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white block">نقاط النهاية والعمليات المتاحة:</span>
+                  <span className="text-[11px] text-slate-400">{allRoutes.length} عملية موثقة</span>
+                </div>
+
+                <div className="space-y-2 max-h-[620px] overflow-y-auto pr-1">
+                  {allRoutes.map((r) => {
+                    const isSelected = activeApiRoute === r.path
+                    return (
+                      <div
+                        key={r.path}
+                        onClick={() => handleRunApiTest(r.path)}
+                        className={`p-3.5 rounded-xl border transition cursor-pointer space-y-2 ${
+                          isSelected
+                            ? 'bg-[#042848] border-cyan-400 shadow-lg shadow-cyan-950/60'
+                            : 'bg-[#031527] border-slate-800 hover:border-cyan-800/60'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 font-mono text-xs overflow-hidden">
+                            <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-bold text-[10px] border border-emerald-800/40">
+                              {r.method}
+                            </span>
+                            <span className="text-white font-mono text-[11px] truncate" dir="ltr">{r.path}</span>
+                          </div>
+                          <span className="text-[10px] text-cyan-400 font-semibold px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/50">
+                            تجربة
+                          </span>
+                        </div>
+
+                        <p className="text-[11px] text-slate-300">{r.desc}</p>
+
+                        <div className="bg-[#020b18] p-2 rounded-lg font-mono text-[10px] text-slate-400 overflow-x-auto flex items-center justify-between gap-2" dir="ltr">
+                          <span className="truncate">{r.curl}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigator.clipboard.writeText(r.curl)
+                            }}
+                            className="text-cyan-400 hover:text-white p-1"
+                            title="نسخ أمر curl"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
 
-              {/* Live Interactive Test Console (Col 7) */}
-              <div className="lg:col-span-7 p-5 rounded-2xl bg-[#031527] border border-cyan-800/60 space-y-4 shadow-xl">
+              {/* Live Interactive Test Console (Col 6) */}
+              <div className="lg:col-span-6 p-5 rounded-2xl bg-[#031527] border border-cyan-800/60 space-y-4 shadow-xl flex flex-col">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
                     <Play className="w-4 h-4 text-cyan-400" />
-                    وحدة التجربة الحية (Live API Console)
+                    وحدة الاختبار الحية (Live Interactive Console)
                   </h3>
                   <button
                     onClick={() => handleRunApiTest(activeApiRoute)}
                     disabled={apiConsoleLoading}
-                    className="px-3.5 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs rounded-lg shadow transition flex items-center gap-1.5"
+                    className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-bold text-xs rounded-lg shadow transition flex items-center gap-1.5"
                   >
                     {apiConsoleLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-                    <span>إرسال الطلب</span>
+                    <span>إرسال الطلب (Send)</span>
                   </button>
                 </div>
 
-                <div className="p-3 bg-[#020b18] rounded-xl border border-slate-800 font-mono text-xs text-cyan-300 break-all" dir="ltr">
-                  GET {activeApiRoute}
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1">الطلب المنفذ (Request URL):</label>
+                  <div className="p-2.5 bg-[#020b18] rounded-xl border border-slate-800 font-mono text-xs text-cyan-300 break-all" dir="ltr">
+                    GET {activeApiRoute}
+                  </div>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1 flex-1 flex flex-col min-h-0">
                   <div className="flex justify-between items-center text-xs text-slate-400">
-                    <span>استجابة الخادم (Response):</span>
-                    <span className="text-emerald-400 font-mono">Status: 200 OK</span>
+                    <span>بيانات الاستجابة الحية (Server Response):</span>
+                    {apiConsoleResponse && (
+                      <span className="text-emerald-400 font-mono text-[11px]">HTTP 200 OK</span>
+                    )}
                   </div>
                   <pre
-                    className="p-4 bg-[#020b18] rounded-xl border border-slate-800 text-[11px] text-emerald-300 font-mono overflow-x-auto max-h-80"
+                    className="p-4 bg-[#020b18] rounded-xl border border-slate-800 text-[11px] text-emerald-300 font-mono overflow-auto flex-1 max-h-[460px]"
                     dir="ltr"
                   >
                     {apiConsoleResponse
                       ? JSON.stringify(apiConsoleResponse, null, 2)
-                      : '// انقر على "إرسال الطلب" لعرض بيانات الـ JSON الحية من الخادم...'}
+                      : '// اختر أي نقطة نهاية من القائمة واضغط على "إرسال الطلب" لاختبار الاستجابة الحية...'}
                   </pre>
                 </div>
               </div>
 
             </div>
 
+            {/* Client SDK Generation & Usage Guide */}
+            <div className="p-5 bg-[#031527] border border-cyan-900/40 rounded-2xl space-y-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <FileCode className="w-4 h-4 text-cyan-400" />
+                توليد عميل برمجي تلقائي (Client SDK Generation)
+              </h3>
+              <p className="text-xs text-slate-400">
+                يمكنك توليد عميل برمجي كامل (TypeScript, Python, Go, Dart/Flutter) باستخدام مواصفة OpenAPI 3.1 عبر أداة openapi-generator:
+              </p>
+              <div className="p-3 bg-[#020b18] rounded-xl border border-slate-800 font-mono text-xs text-cyan-300 overflow-x-auto" dir="ltr">
+                npx @openapitools/openapi-generator-cli generate \<br />
+                &nbsp;&nbsp;-i http://localhost:3000/v1/openapi.json \<br />
+                &nbsp;&nbsp;-g typescript-fetch \<br />
+                &nbsp;&nbsp;-o ./quranmind-client
+              </div>
+            </div>
           </div>
         )
       }
@@ -1696,7 +1836,13 @@ export function DashboardTabView({ tab }: TabViewProps) {
         return <AdminDashboardView />
 
       // ----------------------------------------------------
-      // 10. SETTINGS / DEFAULT FALLBACK
+      // 10. USER SETTINGS TAB
+      // ----------------------------------------------------
+      case 'settings':
+        return <UserSettingsView />
+
+      // ----------------------------------------------------
+      // 11. DEFAULT FALLBACK
       // ----------------------------------------------------
     default:
       return (

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { UserProfileButton } from './user-profile-button'
@@ -31,6 +31,7 @@ import {
   Network,
   Plus,
   Search,
+  Settings,
   Sparkles,
   Star,
   X,
@@ -44,6 +45,7 @@ import {
   Check,
   Send,
   Quote,
+  Eye,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -54,7 +56,7 @@ export interface NavItem {
   badge?: string
 }
 
-// User Dashboard Sidebar Navigation - Admin & Settings are separated into their own protected route /admin
+// User Dashboard Sidebar Navigation - Includes User Settings (Admin is separated in /admin)
 export const allNavItems: NavItem[] = [
   { id: 'overview', href: '/dashboard', label: 'الرئيسية', icon: Home },
   { id: 'quran', href: '/dashboard/quran', label: 'القرآن الكريم', icon: BookOpen },
@@ -66,6 +68,7 @@ export const allNavItems: NavItem[] = [
   { id: 'library', href: '/dashboard/library', label: 'المكتبة والمخطوطات', icon: LibraryBig },
   { id: 'statistics', href: '/dashboard/statistics', label: 'الإحصائيات', icon: LineChart },
   { id: 'api-docs', href: '/dashboard/api-docs', label: 'توثيق الـ API', icon: FileCode, badge: 'v1' },
+  { id: 'settings', href: '/dashboard/settings', label: 'إعدادات الحساب', icon: Settings },
 ]
 
 export function QuranMindDashboard({
@@ -107,15 +110,18 @@ export function QuranMindDashboard({
   const [addMenuOpen, setAddMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [agentMessage, setAgentMessage] = useState('')
-  const [quranTab, setQuranTab] = useState('الدلالات')
+  const [quranTab, setQuranTab] = useState('المخططات والبيانات')
   const [evidenceTab, setEvidenceTab] = useState('الدلالات')
   const [overviewMode, setOverviewMode] = useState<'panes' | 'overview'>('panes')
 
-  // Live Quran Navigator in the Middle Pane
+  // Real Mushaf Experience State
   const [mushafSurah, setMushafSurah] = useState<number>(36) // Default to Surah Ya-Sin
-  const [currentAyahIndex, setCurrentAyahIndex] = useState<number>(37) // Ayah 38
-  const [mushafPageSize, setMushafPageSize] = useState<number>(3) // Show 3 ayahs per page view
+  const [currentAyahIndex, setCurrentAyahIndex] = useState<number>(37) // Start at Ayah 38 (The Sun and Moon symmetry passage)
+  const [mushafPageSize, setMushafPageSize] = useState<number>(5) // Show 5 verses per page for continuous flowing Mushaf feel
   const [copiedAyahKey, setCopiedAyahKey] = useState<string | null>(null)
+
+  // Selected Verse in Mushaf (by clicking on it)
+  const [selectedVerse, setSelectedVerse] = useState<QuranVerse | null>(null)
 
   // Audio Playback
   const [playingAyahKey, setPlayingAyahKey] = useState<string | null>(null)
@@ -137,18 +143,27 @@ export function QuranMindDashboard({
   ])
 
   // Get verses for currently selected Surah
-  const surahVerses = React.useMemo(() => {
+  const surahVerses = useMemo(() => {
     return getSurahVerses(mushafSurah)
   }, [mushafSurah])
 
-  // Paginated slice of verses for the middle pane
-  const displayedVerses = React.useMemo(() => {
+  // Paginated slice of verses for the continuous Mushaf page
+  const displayedVerses = useMemo(() => {
     const start = Math.max(0, currentAyahIndex)
     return surahVerses.slice(start, start + mushafPageSize)
   }, [surahVerses, currentAyahIndex, mushafPageSize])
 
+  // Set default selected verse on mount or surah change
+  useEffect(() => {
+    if (displayedVerses.length > 0 && !selectedVerse) {
+      // Find Ayah 40 (symmetry verse) if in Ya-Sin, else first displayed verse
+      const symmetryVerse = displayedVerses.find((v) => v.ayah === 40) || displayedVerses[0]
+      setSelectedVerse(symmetryVerse)
+    }
+  }, [displayedVerses, selectedVerse])
+
   // Current active Surah metadata
-  const currentSurahMeta = React.useMemo(() => {
+  const currentSurahMeta = useMemo(() => {
     return SURAHS_META.find((s) => s.number === mushafSurah) || SURAHS_META[0]
   }, [mushafSurah])
 
@@ -198,6 +213,11 @@ export function QuranMindDashboard({
       setActiveTabId(nextTab.id)
       window.history.pushState(null, '', nextTab.href)
     }
+  }
+
+  // Click on a verse in the real Mushaf to select it
+  const handleVerseClick = (verse: QuranVerse) => {
+    setSelectedVerse(verse)
   }
 
   // Add specific verse as context into AI Agent chat
@@ -261,12 +281,20 @@ export function QuranMindDashboard({
       { sender: 'user', text: query || `تحليل الآية المرفقة`, verseContext: currentContext },
       {
         sender: 'agent',
-        text: `تم استلام الآية للتحليل العلمي. جاري استخراج الإعجاز البنائي، أوزان الكلمات، والتوافقات الكونية والفيزيائية الموثقة في التفاسير والمراجع الحديثة.`,
+        text: `تم استلام الآية الكريمة للتحليل العلمي. جاري استخراج الإعجاز البنائي، أوزان الكلمات، والتوافقات الكونية والفيزيائية الموثقة في التفاسير والمراجع الحديثة.`,
       },
     ])
 
     setAgentMessage('')
   }
+
+  // Calculate dynamic letter count for the selected verse
+  const selectedVerseLetters = useMemo(() => {
+    if (!selectedVerse) return []
+    // Clean Arabic text from diacritics for letter panel
+    const cleaned = selectedVerse.text.replace(/[\u064B-\u0652\u0670\u06D6-\u06ED\s]/g, '')
+    return cleaned.split('').slice(0, 14) // Display first 14 letters in panel
+  }, [selectedVerse])
 
   // Unopened tabs for the Quick-Add (+) dropdown
   const unopenedItems = allNavItems.filter((item) => !openTabs.some((t) => t.id === item.id))
@@ -282,7 +310,7 @@ export function QuranMindDashboard({
         {sidebarOpen ? <X /> : <Menu />}
       </button>
 
-      {/* Sidebar - User Tools Only (Admin & Settings are moved to /admin) */}
+      {/* Sidebar - Complete User Tools (Admin is separate in /admin) */}
       <aside className={`exact-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
         <div className="exact-brand">
           <div className="exact-logo">
@@ -611,32 +639,32 @@ export function QuranMindDashboard({
                           handleSendMessage()
                         }
                       }}
-                      placeholder="اكتب سؤالك هنا للوكيل الذكي، أو أضف آية من المصحف..."
+                      placeholder="اكتب سؤالك هنا للوكيل الذكي، أو انقر على أي آية في المصحف لإضافتها..."
                     />
                     <button type="button" onClick={handleSendMessage} title="إرسال">
                       ➤
                     </button>
                     <small>GPT-4o / Claude 3.5　⌄</small>
                     <div className="composer-suggestions">
-                      <button onClick={() => setAgentMessage('ما هو الإعجاز العددي في الآية المرفقة؟')}>
+                      <button onClick={() => setAgentMessage('ما هو الإعجاز العددي في الآية المحددة بالمصحف؟')}>
                         ما هو الإعجاز العددي؟
                       </button>
-                      <button onClick={() => setAgentMessage('ابحث عن الدلائل العلمية للآية المرفقة')}>
+                      <button onClick={() => setAgentMessage('ابحث عن الدلائل العلمية للآية المحددة')}>
                         إبحث عن علمية
                       </button>
-                      <button onClick={() => setAgentMessage('حلل التناظر الحرفي للآية المرفقة')}>
+                      <button onClick={() => setAgentMessage('حلل التناظر الحرفي للآية المحددة')}>
                         إبحث عن تناظر
                       </button>
                     </div>
                   </div>
                 </section>
 
-                {/* 2. Interactive Quran Reader with Verse Navigation and Hover Actions */}
+                {/* 2. Authentic Real Mushaf Reader with Click-to-Select and Add to Agent Button */}
                 <section className="exact-quran">
                   <header>
                     <div className="flex items-center gap-2">
                       <BookOpen className="text-cyan-400 w-5 h-5" />
-                      <span className="font-bold text-sm text-white">القرآن الكريم (تصفح وتلاوة)</span>
+                      <span className="font-bold text-sm text-white">المصحف الشريف (تلاوة وتدبر)</span>
                     </div>
 
                     {/* Surah Selector Dropdown */}
@@ -646,12 +674,13 @@ export function QuranMindDashboard({
                         onChange={(e) => {
                           setMushafSurah(Number(e.target.value))
                           setCurrentAyahIndex(0)
+                          setSelectedVerse(null)
                         }}
                         className="surah-select-box"
                       >
                         {SURAHS_META.map((s) => (
                           <option key={s.number} value={s.number}>
-                            {s.number}. {s.name} ({s.revelationType === 'Meccan' ? 'مكية' : 'مدنية'})
+                            {s.number}. سورة {s.name} ({s.revelationType === 'Meccan' ? 'مكية' : 'مدنية'})
                           </option>
                         ))}
                       </select>
@@ -671,116 +700,153 @@ export function QuranMindDashboard({
                     </div>
                   </header>
 
-                  {/* Real Interactive Quran Verses Container (Replaces Static Image) */}
-                  <div className="mushaf-live-container">
-                    {/* Surah Header Banner */}
-                    <div className="surah-header-banner">
-                      <div className="surah-title">
-                        <span>سورة {currentSurahMeta.name}</span>
-                        <small>
-                          {currentSurahMeta.revelationType === 'Meccan' ? 'مكية' : 'مدنية'} · {currentSurahMeta.numberOfAyahs} آية
-                        </small>
+                  {/* Authentic Traditional Mushaf Page Frame (المصحف الشريف) */}
+                  <div className="mushaf-real-page">
+                    {/* Top Mushaf Header: Juz / Surah Plaque / Hizb */}
+                    <div className="mushaf-page-topbar">
+                      <span className="mushaf-juz-tag">الجزء {currentSurahMeta.number > 30 ? '٢٣' : '١'}</span>
+
+                      <div className="mushaf-surah-plaque">
+                        <span className="plaque-title">سُورَةُ {currentSurahMeta.name}</span>
+                        <span className="plaque-subtitle">
+                          {currentSurahMeta.revelationType === 'Meccan' ? 'مَكِّيَّةٌ' : 'مَدَنِيَّةٌ'} · {currentSurahMeta.numberOfAyahs} آيَاتٍ
+                        </span>
                       </div>
 
-                      {mushafSurah !== 9 && mushafSurah !== 1 && (
-                        <div className="bismillah-line font-serif">
-                          بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+                      <span className="mushaf-hizb-tag">الحزب {currentSurahMeta.number > 30 ? '٤٦' : '١'}</span>
+                    </div>
+
+                    {/* Basmalah Calligraphy Cartouche */}
+                    {mushafSurah !== 9 && mushafSurah !== 1 && (
+                      <div className="mushaf-basmalah-box">
+                        <div className="mushaf-basmalah-ornament">
+                          <span>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</span>
                         </div>
-                      )}
+                      </div>
+                    )}
+
+                    {/* Continuous Justified Mushaf Text Flow */}
+                    <div className="mushaf-page-body">
+                      <div className="mushaf-flowing-text font-serif">
+                        {displayedVerses.map((verse) => {
+                          const isSelected = selectedVerse?.id === verse.id
+                          const isContextAttached = attachedVerse?.id === verse.id
+                          const isPlaying = playingAyahKey === `${verse.surah}:${verse.ayah}`
+
+                          return (
+                            <span
+                              key={verse.id}
+                              onClick={() => handleVerseClick(verse)}
+                              className={`mushaf-verse-span ${
+                                isSelected ? 'is-selected' : ''
+                              } ${isContextAttached ? 'is-attached' : ''} ${
+                                isPlaying ? 'is-playing' : ''
+                              }`}
+                              title={`انقر لتحديد الآية ${verse.ayah} وإضافتها للوكيل الذكي`}
+                            >
+                              <span className="verse-arabic-words">{verse.text}</span>
+                              <span className="mushaf-ayah-medallion">
+                                ﴿{verse.ayah}﴾
+                              </span>
+                            </span>
+                          )
+                        })}
+                      </div>
                     </div>
 
-                    {/* Verses List with Hover Action Toolbar */}
-                    <div className="mushaf-verses-scroll">
-                      {displayedVerses.map((verse) => {
-                        const isPlaying = playingAyahKey === `${verse.surah}:${verse.ayah}`
-                        const isContextAttached = attachedVerse?.id === verse.id
-                        const isCopied = copiedAyahKey === `${verse.surah}:${verse.ayah}`
+                    {/* Interactive Selected Verse Dock with "Add to Chat Agent" Button */}
+                    {selectedVerse ? (
+                      <div className="mushaf-selected-dock">
+                        <div className="dock-verse-info">
+                          <span className="dock-ayah-badge">
+                            سورة {selectedVerse.surahName} [الآية {selectedVerse.ayah}]
+                          </span>
+                          <span className="dock-hint">تم تحديد الآية — اختر الإجراء:</span>
+                        </div>
 
-                        return (
-                          <div
-                            key={verse.id}
-                            className={`mushaf-verse-card group ${
-                              isContextAttached ? 'is-attached-context' : ''
-                            } ${isPlaying ? 'is-playing' : ''}`}
+                        <div className="dock-actions-row">
+                          {/* PRIMARY ACTION: Add Verse to Chat Agent Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleAddVerseToAgentContext(selectedVerse)}
+                            className={`dock-btn-add-agent ${
+                              attachedVerse?.id === selectedVerse.id ? 'is-active-context' : ''
+                            }`}
+                            title="إضافة هذه الآية إلى سياق الوكيل الذكي للتحليل"
                           >
-                            {/* Verse Text with Ayah Marker */}
-                            <div className="verse-text-line font-serif">
-                              <span>{verse.text}</span>
-                              <span className="ayah-number-badge">﴿{verse.ayah}﴾</span>
-                            </div>
+                            <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
+                            <span>
+                              {attachedVerse?.id === selectedVerse.id
+                                ? 'الآية في سياق الوكيل ✓'
+                                : 'إضافة الآية إلى الوكيل الذكي'}
+                            </span>
+                          </button>
 
-                            {/* Verse Bottom Action Bar (Appears cleanly on hover or focus) */}
-                            <div className="verse-action-bar">
-                              {/* 1. Add Verse to Chat Agent as Context */}
-                              <button
-                                type="button"
-                                onClick={() => handleAddVerseToAgentContext(verse)}
-                                className={`verse-btn-add-agent ${
-                                  isContextAttached ? 'btn-active' : ''
-                                }`}
-                                title="إضافة هذه الآية إلى سياق الوكيل الذكي للتحليل"
-                              >
-                                <Sparkles className="w-3 h-3 text-cyan-300" />
-                                <span>
-                                  {isContextAttached ? 'الآية في السياق ✓' : 'إضافة للوكيل الذكي'}
-                                </span>
-                              </button>
+                          {/* Play Audio Recitation */}
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePlayAyah(selectedVerse)}
+                            className={`dock-btn-secondary ${
+                              playingAyahKey === `${selectedVerse.surah}:${selectedVerse.ayah}`
+                                ? 'btn-playing'
+                                : ''
+                            }`}
+                            title="استماع لتلاوة الآية"
+                          >
+                            {playingAyahKey === `${selectedVerse.surah}:${selectedVerse.ayah}` ? (
+                              <>
+                                <Pause className="w-3 h-3" />
+                                <span>إيقاف</span>
+                              </>
+                            ) : (
+                              <>
+                                <Play className="w-3 h-3" />
+                                <span>استماع</span>
+                              </>
+                            )}
+                          </button>
 
-                              {/* 2. Play Audio Recitation */}
-                              <button
-                                type="button"
-                                onClick={() => handleTogglePlayAyah(verse)}
-                                className={`verse-btn-audio ${isPlaying ? 'btn-playing' : ''}`}
-                                title={isPlaying ? 'إيقاف التلاوة' : 'استماع للتلاوة (مشاري العفاسي)'}
-                              >
-                                {isPlaying ? (
-                                  <>
-                                    <Pause className="w-3 h-3" />
-                                    <span>إيقاف</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Play className="w-3 h-3" />
-                                    <span>استماع</span>
-                                  </>
-                                )}
-                              </button>
+                          {/* Copy Verse */}
+                          <button
+                            type="button"
+                            onClick={() => handleCopyAyah(selectedVerse)}
+                            className="dock-btn-icon"
+                            title="نسخ الآية الكريمة"
+                          >
+                            {copiedAyahKey === `${selectedVerse.surah}:${selectedVerse.ayah}` ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mushaf-click-hint">
+                        <span>💡 انقر على أي آية في المصحف لتحديدها وإضافتها إلى الوكيل الذكي</span>
+                      </div>
+                    )}
 
-                              {/* 3. Copy Verse */}
-                              <button
-                                type="button"
-                                onClick={() => handleCopyAyah(verse)}
-                                className="verse-btn-copy"
-                                title="نسخ الآية الكريمة"
-                              >
-                                {isCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-
-                    {/* Pagination Controls */}
-                    <div className="mushaf-nav-footer">
+                    {/* Mushaf Page Navigation Bottom Bar */}
+                    <div className="mushaf-page-footer">
                       <button
                         type="button"
                         disabled={currentAyahIndex <= 0}
                         onClick={() => setCurrentAyahIndex((prev) => Math.max(0, prev - mushafPageSize))}
-                        className="mushaf-nav-btn"
+                        className="mushaf-page-btn"
                       >
                         ‹ الآيات السابقة
                       </button>
 
-                      <span className="mushaf-nav-page-info">
-                        الآيات {currentAyahIndex + 1} - {Math.min(currentAyahIndex + mushafPageSize, currentSurahMeta.numberOfAyahs)} من {currentSurahMeta.numberOfAyahs}
+                      <span className="mushaf-page-number">
+                        الآيات {currentAyahIndex + 1} إلى {Math.min(currentAyahIndex + mushafPageSize, currentSurahMeta.numberOfAyahs)}
                       </span>
 
                       <button
                         type="button"
                         disabled={currentAyahIndex + mushafPageSize >= currentSurahMeta.numberOfAyahs}
                         onClick={() => setCurrentAyahIndex((prev) => prev + mushafPageSize)}
-                        className="mushaf-nav-btn"
+                        className="mushaf-page-btn"
                       >
                         الآيات التالية ›
                       </button>
@@ -799,31 +865,33 @@ export function QuranMindDashboard({
                     ))}
                   </div>
 
-                  <div className="numeric-title">إحصائيات رقمية وتناظرية</div>
+                  <div className="numeric-title">
+                    إحصائيات رقمية وتناظرية للآية المحددة: {selectedVerse ? `[${selectedVerse.surahName}: ${selectedVerse.ayah}]` : ''}
+                  </div>
                   <div className="numeric-grid">
                     <div>
-                      <span>عدد الحروف (الآيتان)</span>
-                      <strong>14</strong>
-                      <small>7 + 7</small>
+                      <span>عدد الحروف (الآية)</span>
+                      <strong>{selectedVerse ? selectedVerse.text.replace(/[\u064B-\u0652\u0670\u06D6-\u06ED\s]/g, '').length : '14'}</strong>
+                      <small>حرف قرآني</small>
                     </div>
                     <div>
-                      <span>عدد الكلمات (الآيتان)</span>
-                      <strong>5</strong>
-                      <small>3 + 2</small>
+                      <span>عدد الكلمات</span>
+                      <strong>{selectedVerse ? selectedVerse.text.split(/\s+/).filter(Boolean).length : '5'}</strong>
+                      <small>كلمات تامة</small>
                     </div>
                     <div>
                       <span>نسبة التناظر</span>
                       <strong>100%</strong>
-                      <small>دقيق</small>
+                      <small>دقيق علمياً</small>
                     </div>
                   </div>
 
                   <div className="letter-panel">
-                    <h3>توزيع الحروف في الآيتين</h3>
+                    <h3>توزيع الحروف في الآية المحددة</h3>
                     <div>
                       <div className="letter-line">
-                        <b>ربك فكبر</b>
-                        {['ر', 'ب', 'ك', 'ف', 'ك', 'ب', 'ر'].map((x, i) => (
+                        <b>{selectedVerse ? `الآية ${selectedVerse.ayah}` : 'ربك فكبر'}</b>
+                        {selectedVerseLetters.map((x, i) => (
                           <i key={i}>{x}</i>
                         ))}
                       </div>
@@ -929,7 +997,7 @@ export function QuranMindDashboard({
               </div>
             )
           ) : (
-            /* Subpage / Specific Tool Tab View (e.g. Full Quran, Analysis, Hadith, Notes, etc.) */
+            /* Subpage / Specific Tool Tab View (e.g. Settings, Full Quran, Analysis, Hadith, Notes, etc.) */
             <div className="exact-tab-view-wrapper">
               <DashboardTabView tab={activeTabId} />
             </div>
@@ -1794,7 +1862,7 @@ const styles = `
   cursor: pointer;
 }
 
-/* Quran Middle Pane Styles */
+/* Quran Middle Pane Controls */
 .surah-select-box {
   background: #06233f;
   border: 1px solid #124c75;
@@ -1825,187 +1893,264 @@ const styles = `
   border-color: #00d4ff;
 }
 
-/* Mushaf Live Interactive Viewer */
-.mushaf-live-container {
+/* ========================================================= */
+/* Authentic Real Mushaf Page Styling (المصحف الشريف الملكي) */
+/* ========================================================= */
+.mushaf-real-page {
   margin: 8px 10px;
-  border: 1px solid #144268;
-  border-radius: 9px;
-  background: #031a2f;
+  border: 2px solid #b89130;
+  outline: 1px solid #144a73;
+  outline-offset: -5px;
+  border-radius: 10px;
+  background: radial-gradient(circle at 50% 30%, #062540, #031628);
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 0 40px rgba(0, 0, 0, 0.4);
 }
 
-.surah-header-banner {
-  background: #052440;
-  border-bottom: 1px solid #134368;
-  padding: 8px 12px;
+.mushaf-page-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px 4px;
+  border-bottom: 1px solid rgba(184, 145, 48, 0.3);
+}
+
+.mushaf-juz-tag,
+.mushaf-hizb-tag {
+  font-size: 10px;
+  color: #d1b46a;
+  font-weight: bold;
+}
+
+.mushaf-surah-plaque {
+  border: 1.5px solid #d1b46a;
+  background: linear-gradient(180deg, #093357 0%, #041f36 100%);
+  border-radius: 6px;
+  padding: 3px 18px;
   text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
-.surah-title span {
+.plaque-title {
+  display: block;
   font-size: 13px;
   font-weight: bold;
-  color: #62dcf5;
-}
-
-.surah-title small {
-  display: block;
-  font-size: 9px;
-  color: #89b3ce;
-  margin-top: 1px;
-}
-
-.bismillah-line {
-  color: #d1ecfa;
-  font-size: 14px;
-  margin-top: 4px;
+  color: #ffe699;
   letter-spacing: 0.5px;
+  font-family: 'Amiri', 'UthmanicHafs', serif;
 }
 
-.mushaf-verses-scroll {
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 240px;
+.plaque-subtitle {
+  display: block;
+  font-size: 8.5px;
+  color: #7dd3fc;
+}
+
+.mushaf-basmalah-box {
+  text-align: center;
+  padding: 8px 12px 4px;
+}
+
+.mushaf-basmalah-ornament {
+  display: inline-block;
+  color: #e0f2fe;
+  font-size: 15px;
+  letter-spacing: 1px;
+  text-shadow: 0 0 12px rgba(255, 230, 153, 0.3);
+}
+
+.mushaf-page-body {
+  padding: 10px 14px;
+  min-height: 180px;
+  max-height: 250px;
   overflow-y: auto;
 }
 
-.mushaf-verse-card {
-  background: #041f38;
-  border: 1px solid #114168;
-  border-radius: 8px;
-  padding: 10px 12px;
+.mushaf-flowing-text {
+  text-align: justify;
+  text-align-last: center;
+  line-height: 2.3;
+  font-size: 16px;
+  color: #f0f9ff;
+  direction: rtl;
+}
+
+.mushaf-verse-span {
+  display: inline;
+  padding: 2px 4px;
+  border-radius: 5px;
+  cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
 }
 
-.mushaf-verse-card:hover {
-  border-color: #00d4ff;
-  background: #062847;
-  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.1);
+.mushaf-verse-span:hover {
+  background: rgba(0, 212, 255, 0.15);
+  text-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
 }
 
-.mushaf-verse-card.is-attached-context {
-  border-color: #00e1ff;
-  background: #073155;
-  box-shadow: inset 0 0 0 1px #00e1ff;
+.mushaf-verse-span.is-selected {
+  background: rgba(0, 212, 255, 0.25);
+  box-shadow: 0 0 0 1px #00d4ff, 0 0 12px rgba(0, 212, 255, 0.3);
+  color: #ffffff;
 }
 
-.mushaf-verse-card.is-playing {
-  border-color: #22c55e;
-  background: #052e3b;
+.mushaf-verse-span.is-attached {
+  background: rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 0 1px #10b981;
 }
 
-.verse-text-line {
-  font-size: 15px;
-  line-height: 2;
-  color: #f1f8fc;
-  text-align: right;
-  margin-bottom: 8px;
+.mushaf-verse-span.is-playing {
+  background: rgba(234, 179, 8, 0.2);
+  box-shadow: 0 0 0 1px #eab308;
 }
 
-.ayah-number-badge {
-  color: #00d4ff;
+.verse-arabic-words {
+  font-family: 'UthmanicHafs', 'Amiri Quran', var(--font-cairo), serif;
+}
+
+.mushaf-ayah-medallion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #d1b46a;
   font-size: 13px;
-  margin-right: 6px;
-  font-family: inherit;
+  font-weight: bold;
+  margin: 0 4px;
+  text-shadow: 0 0 4px rgba(209, 180, 106, 0.4);
 }
 
-.verse-action-bar {
+/* Selected Verse Action Dock at the bottom of the Mushaf */
+.mushaf-selected-dock {
+  background: #021424;
+  border-top: 1px solid #144f7a;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: slide-up 0.2s ease;
+}
+
+.dock-verse-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dock-ayah-badge {
+  font-size: 10px;
+  font-weight: bold;
+  color: #38bdf8;
+}
+
+.dock-hint {
+  font-size: 8.5px;
+  color: #94a3b8;
+}
+
+.dock-actions-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding-top: 6px;
-  border-top: 1px solid #10395c;
 }
 
-.verse-btn-add-agent {
+/* The Prominent "Add to Chat Agent" Button */
+.dock-btn-add-agent {
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 5px;
-  background: #063152;
-  border: 1px solid #11578a;
-  border-radius: 6px;
-  padding: 4px 8px;
-  color: #72dbf7;
-  font-size: 9.5px;
+  justify-content: center;
+  gap: 6px;
+  background: linear-gradient(90deg, #084877, #075f9e);
+  border: 1px solid #00d4ff;
+  border-radius: 7px;
+  padding: 6px 10px;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: bold;
   cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 212, 255, 0.25);
   transition: all 0.15s ease;
 }
 
-.verse-btn-add-agent:hover {
-  background: #084370;
-  border-color: #00d4ff;
-  color: #ffffff;
+.dock-btn-add-agent:hover {
+  background: linear-gradient(90deg, #095994, #0b73be);
+  box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+  transform: translateY(-1px);
 }
 
-.verse-btn-add-agent.btn-active {
-  background: #084877;
-  border-color: #00e1ff;
-  color: #00e1ff;
-  font-weight: bold;
+.dock-btn-add-agent.is-active-context {
+  background: linear-gradient(90deg, #065f46, #047857);
+  border-color: #10b981;
 }
 
-.verse-btn-audio {
+.dock-btn-secondary {
   display: flex;
   align-items: center;
   gap: 4px;
-  background: #052640;
-  border: 1px solid #114269;
-  border-radius: 6px;
-  padding: 4px 8px;
-  color: #9ec1d8;
+  background: #04253f;
+  border: 1px solid #124b78;
+  border-radius: 7px;
+  padding: 6px 10px;
+  color: #cbe6f7;
   font-size: 9.5px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.verse-btn-audio:hover {
+.dock-btn-secondary:hover {
+  background: #073860;
   color: #ffffff;
-  background: #09375b;
 }
 
-.verse-btn-audio.btn-playing {
+.dock-btn-secondary.btn-playing {
   background: #064e3b;
   border-color: #10b981;
   color: #34d399;
 }
 
-.verse-btn-copy {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  background: #052640;
-  border: 1px solid #114269;
-  border-radius: 6px;
-  color: #9ec1d8;
+.dock-btn-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  background: #04253f;
+  border: 1px solid #124b78;
+  border-radius: 7px;
+  color: #94a3b8;
   cursor: pointer;
-  margin-right: auto;
   transition: all 0.15s ease;
 }
 
-.verse-btn-copy:hover {
+.dock-btn-icon:hover {
   color: #ffffff;
-  background: #09375b;
+  background: #073860;
 }
 
-.mushaf-nav-footer {
+.mushaf-click-hint {
+  padding: 6px 12px;
+  text-align: center;
+  font-size: 9px;
+  color: #7dd3fc;
+  background: rgba(4, 32, 54, 0.6);
+  border-top: 1px dashed #144970;
+}
+
+.mushaf-page-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
-  background: #04192b;
-  border-top: 1px solid #103656;
+  padding: 6px 14px;
+  border-top: 1px solid rgba(184, 145, 48, 0.3);
+  background: #021221;
 }
 
-.mushaf-nav-btn {
-  background: #072e4f;
-  border: 1px solid #124b78;
-  border-radius: 6px;
+.mushaf-page-btn {
+  background: #062b49;
+  border: 1px solid #124f7e;
+  border-radius: 5px;
   padding: 3px 8px;
   color: #84d8f0;
   font-size: 9px;
@@ -2013,14 +2158,14 @@ const styles = `
   transition: all 0.15s ease;
 }
 
-.mushaf-nav-btn:disabled {
-  opacity: 0.35;
+.mushaf-page-btn:disabled {
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
-.mushaf-nav-page-info {
+.mushaf-page-number {
   font-size: 9px;
-  color: #79a6c4;
+  color: #d1b46a;
 }
 
 .quran-tabs {
