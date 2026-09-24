@@ -1,17 +1,12 @@
+import { ClerkProvider } from '@clerk/nextjs';
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Cairo } from 'next/font/google'
+import { AuthProvider } from '@/components/auth-provider'
 import './globals.css'
 
-const cairo = Cairo({
-  subsets: ['arabic', 'latin'],
-  variable: '--font-cairo',
-  display: 'swap',
-})
-
 export const metadata: Metadata = {
-  title: 'QuranMind | اكتشف أسرار القرآن بالعلم والذكاء الاصطناعي',
-  description: 'منصة مفتوحة لتحليل القرآن الكريم واكتشاف الحقائق العلمية والدلالات العددية واللغوية.',
+  title: 'QuranMind | مختبر أبحاث القرآن والذكاء الاصطناعي',
+  description: 'منصة بحثية متقدمة لتحليل القرآن الكريم لغوياً، عددياً، وبنيوياً بالذكاء الاصطناعي.',
   generator: 'QuranMind',
   icons: {
     icon: [
@@ -33,11 +28,8 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light dark',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
-  ],
+  colorScheme: 'dark',
+  themeColor: '#020b18',
 }
 
 export default function RootLayout({
@@ -46,10 +38,20 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ar" dir="rtl">
-      <body className={`${cairo.variable} antialiased`}>
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+    <html lang="ar" dir="rtl" className="dark">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="antialiased" style={{ fontFamily: "var(--font-cairo, 'Cairo', Tahoma, sans-serif)" }}>
+        <ClerkProvider>
+          <AuthProvider>{children}</AuthProvider>
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </ClerkProvider>
       </body>
     </html>
   )

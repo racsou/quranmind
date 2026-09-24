@@ -3,7 +3,10 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import { UserProfileButton } from './user-profile-button'
 import { ArrowLeft, Bell, BookOpen, BrainCircuit, CheckCircle2, ChevronDown, CircleHelp, FileText, FlaskConical, FolderKanban, Home, LibraryBig, LineChart, LogOut, Menu, Moon, Network, Search, Settings, Sparkles, Star, X } from 'lucide-react'
+
+
 
 const tabs = [
   { href: '/dashboard', label: 'الرئيسية', icon: Home },
@@ -35,7 +38,7 @@ export function QuranMindDashboard({ children, title = 'مساحة العمل' }
       <div className="exact-sidebar-footer"><span><i /> النظام متصل</span><small>آخر تحديث: 15:42</small></div>
     </aside>
 
-    <header className="exact-topbar"><div className="exact-search"><Search /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="إبحث في الآيات، الكلمات، التحليلات، أو اطرح سؤالاً..." /><ChevronDown /></div><div className="exact-top-actions"><Bell /><span className="top-divider" /><Moon /><span className="exact-user"><strong>راشد علي</strong><small>باحث ومهتم بالقرآن والعلم</small></span><div className="exact-avatar">ر</div></div></header>
+    <header className="exact-topbar"><div className="exact-search"><Search /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="إبحث في الآيات، الكلمات، التحليلات، أو اطرح سؤالاً..." /><ChevronDown /></div><div className="exact-top-actions"><Bell /><span className="top-divider" /><Moon /><UserProfileButton /></div></header>
 
     <main className="exact-main"><section className="exact-agent"><header><div className="agent-heading"><div className="agent-icon"><BrainCircuit /></div><h1>الوكيل الذكي <em>AI Agent</em></h1></div><span className="agent-online"><i /> متصل</span></header><div className="agent-messages"><div className="agent-user-bubble">حلل الآيتين: «ربك فكبر» و«وكل في فلك يسبحون» من حيث التناظر، أعداد الحروف، الدلالات العلمية، وأي حقائق تم تأكيدها علمياً.<small>15:42</small></div><div className="agent-answer"><BrainCircuit /><div><p>بالتأكيد! سأقوم بتحليل الآيتين بشكل شامل من خلال الأدلة المتاحة.</p><div className="agent-summary"><strong><CheckCircle2 /> ملخص التحليل</strong><ul><li>يوجد تناظر دقيق في بناء الآيتين على مستوى الحروف والكلمات.</li><li>عدد الحروف في كل آية = 7 حروف.</li><li>هناك ارتباط بين هذا الرقم والبنية الكونية (7 طبقات الذرة).</li><li>توجد دلائل علمية مؤكدة في بعض الجوانب.</li><li>بعض الدلالات الأخرى تحتاج إلى مزيد من البحث العلمي.</li></ul></div><span>سأعرض لك الآن التفاصيل الكاملة في الأقسام التالية.</span><div className="agent-actions">{['تحليل الآيات حرفياً وكميّاً','الدلالات العلمية والكونية','الأدلة والمراجع العلمية','النتائج والتصنيف'].map((item, i) => <button key={item}>{item}<span>{[FileText, Network, BookOpen, LineChart][i] && (() => { const I = [FileText, Network, BookOpen, LineChart][i]; return <I /> })()}</span></button>)}</div></div></div></div><div className="exact-composer"><textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="اكتب سؤالك هنا..." /><button onClick={() => setMessage('')}>➤</button><small>GPT-4o　⌄</small><div className="composer-suggestions"><button>ما هو الإعجاز العددي؟</button><button>إبحث عن علمية</button><button>إبحث عن تناظر</button></div></div></section>
 

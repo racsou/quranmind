@@ -4,10 +4,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@font-face {
+  font-family: 'UthmanicHafs';
+  src: url('/fonts/UthmanicHafs_V22.woff2') format('woff2');
+  font-display: swap;
+}
+
 :root { color-scheme: dark; --background: #020b18; --foreground: #eff7ff; --cyan: #00bfff; --blue: #0874d9; --line: rgba(63,145,215,.3); --muted: #a7bad0; }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-cairo), Tahoma, Arial, sans-serif; }
+body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-cairo), 'Cairo', Tahoma, Arial, sans-serif; }
+
 a { color: inherit; text-decoration: none; }
 button { color: inherit; font: inherit; }
 .quranmind-site { min-height: 100vh; overflow: hidden; background: radial-gradient(circle at 15% 15%, rgba(0,90,170,.2), transparent 28rem), #020b18; }
