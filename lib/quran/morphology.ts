@@ -216,3 +216,5 @@ export function analyzeWordToken(word: string): WordAnalysis {
     })),
   }
 }
+
+export const analyzeQuranWord = analyzeWordToken

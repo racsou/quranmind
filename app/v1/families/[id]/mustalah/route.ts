@@ -23,13 +23,13 @@ export async function GET(
   return NextResponse.json({
     family_id: family.id,
     breadth: breadthResult?.breadth || family.breadth,
-    breadth_explanation: breadthResult?.explanation,
-    tier_counts: breadthResult?.tierCounts,
+    breadth_explanation: breadthResult?.description,
+    tier_counts: breadthResult?.minTierCount,
     corroboration: {
       mutabaat: corroboration.mutabaat,
       shawahid: corroboration.shawahid,
-      overall_strength: corroboration.overallStrength,
-      summary: corroboration.summary,
+      overall_strength: corroboration.corroborationStrength,
+      summary: corroboration.scholarlyVerdict,
     },
   })
 }
