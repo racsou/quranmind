@@ -16,6 +16,14 @@
 
 [استكشف واجهة الباحث التفاعلية](http://localhost:3000/workspace) • [لوحة التحكم](http://localhost:3000/dashboard) • [توثيق الـ API المباشر](http://localhost:3000/dashboard/api-docs) • [مواصفة OpenAPI](http://localhost:3000/v1/openapi.json)
 
+<br/><br/>
+
+<img src="docs/images/quranmind-workspace-dashboard.png" alt="لوحة تحكم وبيئة عمل الباحث في QuranMind — Research Workspace" width="100%" />
+
+<br/><br/>
+
+<img src="docs/images/mushaf-ayah-analysis.png" alt="المصحف الشريف الرقمي التفاعلي مع التحليل الصرفي والتناظر العددي" width="72%" />
+
 ---
 
 </div>
