@@ -118,7 +118,7 @@ export function QuranMindDashboard({
   // Real Mushaf Experience State: Start at Surah Al-Fatihah (Surah 1) Ayah 1 (index 0)
   const [mushafSurah, setMushafSurah] = useState<number>(1)
   const [currentAyahIndex, setCurrentAyahIndex] = useState<number>(0)
-  const [mushafPageSize, setMushafPageSize] = useState<number>(1) // Default: 1 ayah at a time (supports toggling to full page)
+  const [mushafPageSize, setMushafPageSize] = useState<number>(4) // Default: 4 ayahs at a time for optimal layout without overflow
   const [copiedAyahKey, setCopiedAyahKey] = useState<string | null>(null)
   const [isLoadingSurah, setIsLoadingSurah] = useState<boolean>(false)
   const [surahSource, setSurahSource] = useState<'cache' | 'backend'>('cache')
@@ -350,36 +350,72 @@ export function QuranMindDashboard({
     setAgentMessage(`حلل الآية الكريمة [سورة ${verse.surahName}: ${verse.ayah}]: «${verse.text}» من حيث الدلالة، التناظر، والروابط العلمية.`)
   }
 
-  // Play / pause recitation of a specific verse
-  const handleTogglePlayAyah = (verse: QuranVerse) => {
-    const ayahKey = `${verse.surah}:${verse.ayah}`
+  // Play continuous recitation from a specific ayah (advances window & surahs automatically)
+  const playVerseContinuous = (surahNum: number, ayahNum: number) => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
 
-    if (playingAyahKey === ayahKey) {
+    const ayahKey = `${surahNum}:${ayahNum}`
+    setPlayingAyahKey(ayahKey)
+
+    // Ensure the ayah is visible in the current 3-4 verses batch!
+    const targetIdx = ayahNum - 1
+    if (targetIdx < currentAyahIndex || targetIdx >= currentAyahIndex + mushafPageSize) {
+      const newStart = Math.floor(targetIdx / mushafPageSize) * mushafPageSize
+      setCurrentAyahIndex(newStart)
+    }
+
+    const padSurah = String(surahNum).padStart(3, '0')
+    const padAyah = String(ayahNum).padStart(3, '0')
+    const audioUrl = `https://everyayah.com/data/Alafasy_128kbps/${padSurah}${padAyah}.mp3`
+
+    const newAudio = new Audio(audioUrl)
+    audioRef.current = newAudio
+
+    newAudio.play().catch((err) => {
+      console.warn('Audio playback error:', err)
+      setPlayingAyahKey(null)
+    })
+
+    newAudio.onended = async () => {
+      const totalAyahs = currentSurahVerses.length || currentSurahMeta.numberOfAyahs
+      if (ayahNum < totalAyahs) {
+        // Next ayah in current surah
+        const nextAyah = ayahNum + 1
+        // If next ayah moves beyond the current visible batch of 3-4 verses, shift the view!
+        if (nextAyah - 1 >= currentAyahIndex + mushafPageSize) {
+          setCurrentAyahIndex((prev) => prev + mushafPageSize)
+        }
+        playVerseContinuous(surahNum, nextAyah)
+      } else {
+        // Reached end of current surah -> load next surah and continue playing!
+        if (surahNum < 114) {
+          const nextSurah = surahNum + 1
+          await loadSurah(nextSurah, 0)
+          playVerseContinuous(nextSurah, 1)
+        } else {
+          setPlayingAyahKey(null)
+        }
+      }
+    }
+  }
+
+  // Toggle audio playback (plays selected verse, or if clicked away, starts from first visible verse)
+  const handleTogglePlayAudio = (targetVerse?: QuranVerse | null) => {
+    if (playingAyahKey) {
       if (audioRef.current) {
         audioRef.current.pause()
+        audioRef.current = null
       }
       setPlayingAyahKey(null)
       return
     }
 
-    if (audioRef.current) {
-      audioRef.current.pause()
-    }
-
-    const padSurah = String(verse.surah).padStart(3, '0')
-    const padAyah = String(verse.ayah).padStart(3, '0')
-    const audioUrl = `https://everyayah.com/data/Alafasy_128kbps/${padSurah}${padAyah}.mp3`
-
-    const newAudio = new Audio(audioUrl)
-    audioRef.current = newAudio
-    setPlayingAyahKey(ayahKey)
-
-    newAudio.play().catch(() => {
-      setPlayingAyahKey(null)
-    })
-
-    newAudio.onended = () => {
-      setPlayingAyahKey(null)
+    const verseToPlay = targetVerse || selectedVerse || displayedVerses[0]
+    if (verseToPlay) {
+      playVerseContinuous(verseToPlay.surah, verseToPlay.ayah)
     }
   }
 
@@ -808,25 +844,60 @@ export function QuranMindDashboard({
                         ))}
                       </select>
 
-                      {/* Display Mode Toggle: 1 Ayah vs Full Page */}
+                      {/* Display Mode Toggle: 3 vs 4 vs Full Page */}
                       <div className="flex items-center gap-1 bg-[#041d33] p-0.5 rounded-md border border-cyan-900/50 text-[10px]">
                         <button
                           type="button"
-                          onClick={() => setMushafPageSize(1)}
-                          className={`px-2 py-0.5 rounded transition ${mushafPageSize === 1 ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
-                          title="عرض آية بآية للتدبر الفردي"
+                          onClick={() => setMushafPageSize(3)}
+                          className={`px-2 py-0.5 rounded transition ${mushafPageSize === 3 ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                          title="عرض 3 آيات"
                         >
-                          آية بآية
+                          3 آيات
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMushafPageSize(4)}
+                          className={`px-2 py-0.5 rounded transition ${mushafPageSize === 4 ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                          title="عرض 4 آيات (افتراضي)"
+                        >
+                          4 آيات
                         </button>
                         <button
                           type="button"
                           onClick={() => setMushafPageSize(7)}
-                          className={`px-2 py-0.5 rounded transition ${mushafPageSize > 1 ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
-                          title="عرض متصل للآيات"
+                          className={`px-2 py-0.5 rounded transition ${mushafPageSize === 7 ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                          title="عرض متصل"
                         >
                           صفحة
                         </button>
                       </div>
+
+                      {/* Continuous Audio Playback Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePlayAudio()}
+                        className={`text-xs px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition font-semibold ${
+                          playingAyahKey
+                            ? 'bg-amber-600 text-white border-amber-400 shadow-md shadow-amber-600/30 animate-pulse'
+                            : 'bg-[#04253f] hover:bg-[#073860] border-cyan-800 text-cyan-200'
+                        }`}
+                        title={
+                          playingAyahKey
+                            ? 'إيقاف التلاوة'
+                            : selectedVerse
+                            ? `استماع من الآية [${selectedVerse.ayah}]`
+                            : `استماع متصل من أول آية ظاهرة (الآية ${displayedVerses[0]?.ayah || 1})`
+                        }
+                      >
+                        {playingAyahKey ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                        <span>
+                          {playingAyahKey
+                            ? 'إيقاف التلاوة'
+                            : selectedVerse
+                            ? `استماع (${selectedVerse.ayah})`
+                            : 'استماع متصل'}
+                        </span>
+                      </button>
 
                       <button
                         type="button"
@@ -844,7 +915,13 @@ export function QuranMindDashboard({
                   </header>
 
                   {/* Authentic Traditional Mushaf Page Frame (المصحف الشريف) */}
-                  <div className="mushaf-real-page">
+                  <div
+                    className="mushaf-real-page"
+                    onClick={() => {
+                      // Click away outside verse spans -> Deselect active verse!
+                      setSelectedVerse(null)
+                    }}
+                  >
                     {/* Top Mushaf Header: Juz / Surah Plaque / Hizb */}
                     <div className="mushaf-page-topbar">
                       <span className="mushaf-juz-tag">
@@ -889,7 +966,10 @@ export function QuranMindDashboard({
                             return (
                               <span
                                 key={verse.id}
-                                onClick={() => handleVerseClick(verse)}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleVerseClick(verse)
+                                }}
                                 className={`mushaf-verse-span ${
                                   isSelected ? 'is-selected' : ''
                                 } ${isContextAttached ? 'is-attached' : ''} ${
@@ -910,12 +990,19 @@ export function QuranMindDashboard({
 
                     {/* Interactive Selected Verse Dock with "Add to Chat Agent" Button */}
                     {selectedVerse ? (
-                      <div className="mushaf-selected-dock">
+                      <div className="mushaf-selected-dock" onClick={(e) => e.stopPropagation()}>
                         <div className="dock-verse-info">
                           <span className="dock-ayah-badge">
                             سورة {selectedVerse.surahName} [الآية {selectedVerse.ayah}]
                           </span>
-                          <span className="dock-hint">تم تحديد الآية — اختر الإجراء:</span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedVerse(null)}
+                            className="text-[9.5px] text-slate-400 hover:text-rose-400 transition"
+                            title="إلغاء التحديد (انقر بعيداً)"
+                          >
+                            إلغاء التحديد ✕
+                          </button>
                         </div>
 
                         <div className="dock-actions-row">
@@ -936,16 +1023,16 @@ export function QuranMindDashboard({
                             </span>
                           </button>
 
-                          {/* Play Audio Recitation */}
+                          {/* Play Audio Recitation continuously from this selected verse */}
                           <button
                             type="button"
-                            onClick={() => handleTogglePlayAyah(selectedVerse)}
+                            onClick={() => handleTogglePlayAudio(selectedVerse)}
                             className={`dock-btn-secondary ${
                               playingAyahKey === `${selectedVerse.surah}:${selectedVerse.ayah}`
                                 ? 'btn-playing'
                                 : ''
                             }`}
-                            title="استماع لتلاوة الآية"
+                            title="استماع لتلاوة هذه الآية والاستمرار بعدها"
                           >
                             {playingAyahKey === `${selectedVerse.surah}:${selectedVerse.ayah}` ? (
                               <>
@@ -976,8 +1063,21 @@ export function QuranMindDashboard({
                         </div>
                       </div>
                     ) : (
-                      <div className="mushaf-click-hint">
-                        <span>💡 انقر على أي آية في المصحف لتحديدها وإضافتها إلى الوكيل الذكي</span>
+                      <div
+                        className="mushaf-click-hint flex items-center justify-between px-3 py-2 cursor-default"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="text-[10px] text-cyan-300">
+                          💡 لم تحدد آية (انقرت بعيداً) — التلاوة ستبدأ تلقائياً من أول آية ظاهرة ({displayedVerses[0]?.ayah || 1}) وتنتقل للآيات التالية
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePlayAudio(displayedVerses[0])}
+                          className="px-2.5 py-1 rounded bg-cyan-700 hover:bg-cyan-600 text-white text-[10px] font-bold flex items-center gap-1 transition shadow-sm"
+                        >
+                          {playingAyahKey ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                          <span>{playingAyahKey ? 'إيقاف التلاوة' : 'تشغيل التلاوة المستمرة'}</span>
+                        </button>
                       </div>
                     )}
 
@@ -2217,8 +2317,20 @@ const styles = `
 }
 
 .mushaf-verse-span.is-playing {
-  background: rgba(234, 179, 8, 0.2);
-  box-shadow: 0 0 0 1px #eab308;
+  background: rgba(234, 179, 8, 0.28) !important;
+  box-shadow: 0 0 0 1.5px #f59e0b, 0 0 16px rgba(245, 158, 11, 0.5) !important;
+  color: #ffffff !important;
+  border-radius: 6px;
+  animation: pulse-ayah-playing 2s infinite ease-in-out;
+}
+
+@keyframes pulse-ayah-playing {
+  0%, 100% {
+    box-shadow: 0 0 0 1.5px #f59e0b, 0 0 12px rgba(245, 158, 11, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 2px #fbbf24, 0 0 20px rgba(251, 191, 36, 0.65);
+  }
 }
 
 .verse-arabic-words {

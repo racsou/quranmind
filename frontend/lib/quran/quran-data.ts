@@ -2,6 +2,7 @@ import rawQpcHafs from './data/qpc-hafs.json'
 import rawTranslations from './data/en-sahih-international-simple.json'
 import rawMatching from './data/matching-ayah.json'
 import rawPhrases from './data/phrases.json'
+import rawPageVerses from './data/page-verses.json'
 
 export interface QuranVerse {
   id: string
@@ -241,6 +242,36 @@ export function getSurahVerses(surahNumber: number): QuranVerse[] {
     if (v) results.push(v)
   }
   return results
+}
+
+const pageVersesLookup: Record<string, string[]> = rawPageVerses as Record<string, string[]>
+
+export function getPageVerses(pageNumber: number): QuranVerse[] {
+  const keys = pageVersesLookup[String(pageNumber)] || []
+  const results: QuranVerse[] = []
+  for (const k of keys) {
+    const v = buildVerse(k)
+    if (v) results.push(v)
+  }
+  return results
+}
+
+export function getSurahStartPage(surahNumber: number): number {
+  const key = `${surahNumber}:1`
+  for (const [pStr, keys] of Object.entries(pageVersesLookup)) {
+    if (keys.includes(key)) return Number(pStr)
+  }
+  return 1
+}
+
+export function getJuzForPage(pageNumber: number): number {
+  if (pageNumber <= 21) return 1
+  return Math.min(30, Math.ceil(pageNumber / 20.13))
+}
+
+export function getHizbForPage(pageNumber: number): number {
+  if (pageNumber <= 11) return 1
+  return Math.min(60, Math.ceil(pageNumber / 10.06))
 }
 
 export function searchQuran(query: string, limit = 50): QuranVerse[] {
