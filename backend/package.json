@@ -1,0 +1,25 @@
+{
+  "name": "quranmind-backend",
+  "version": "1.0.0",
+  "description": "Express Backend for QuranMind SaaS with Supabase Integration",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc -w & node --watch dist/index.js",
+    "seed": "node dist/scripts/seed-supabase.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.7.3"
+  }
+}

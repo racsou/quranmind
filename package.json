@@ -1,0 +1,26 @@
+{
+  "name": "quranmind-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QuranMind — Advanced Qur'anic Research & Scholarly Analysis Platform (Monorepo: Frontend + Express Backend + Supabase)",
+  "scripts": {
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && pnpm dev",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && pnpm build",
+    "build": "npm run build:backend && npm run build:frontend",
+    "seed:supabase": "cd backend && npm run seed"
+  },
+  "keywords": [
+    "quran",
+    "hadith",
+    "islamic-studies",
+    "mustalah",
+    "saas",
+    "supabase",
+    "express",
+    "nextjs"
+  ],
+  "author": "QuranMind Team",
+  "license": "MIT"
+}

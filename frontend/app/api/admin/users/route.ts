@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServiceSupabase, isSupabaseConfigured } from '@/lib/supabase/client'
 
 export type UserRole = 'admin' | 'scholar' | 'student' | 'patron'
 export type UserStatus = 'active' | 'suspended'
@@ -112,6 +113,56 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status')
   const search = searchParams.get('q')
 
+  if (isSupabaseConfigured) {
+    try {
+      const supabase = getServiceSupabase()
+      let query = supabase.from('users').select('*')
+
+      if (role && role !== 'all') query = query.eq('role', role)
+      if (status && status !== 'all') query = query.eq('status', status)
+      if (search) query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`)
+
+      const { data, error } = await query.order('created_at', { ascending: false })
+
+      if (!error && data && data.length > 0) {
+        const mappedUsers: ManagedUser[] = data.map((u: any) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          status: u.status,
+          plan: u.plan,
+          gateway: u.gateway || 'stripe',
+          currency: u.currency || 'USD',
+          amountPaid: Number(u.amount_paid) || 0,
+          joinedAt: u.joined_at?.split('T')[0] || '2026-01-01',
+          apiRequests: u.api_requests || 0,
+          projectsCount: u.projects_count || 0,
+        }))
+
+        const summary = {
+          totalUsers: mappedUsers.length,
+          adminsCount: mappedUsers.filter((u) => u.role === 'admin').length,
+          scholarsCount: mappedUsers.filter((u) => u.role === 'scholar').length,
+          studentsCount: mappedUsers.filter((u) => u.role === 'student').length,
+          patronsCount: mappedUsers.filter((u) => u.role === 'patron').length,
+          totalSlickPayRevenueDZD: mappedUsers.filter((u) => u.currency === 'DZD').reduce((acc, u) => acc + u.amountPaid, 0),
+          totalStripeRevenueUSD: mappedUsers.filter((u) => u.currency === 'USD').reduce((acc, u) => acc + u.amountPaid, 0),
+        }
+
+        return NextResponse.json({
+          success: true,
+          source: 'supabase',
+          summary,
+          count: mappedUsers.length,
+          data: mappedUsers,
+        })
+      }
+    } catch (e) {
+      console.warn('Supabase fetch failed, using fallback database:', e)
+    }
+  }
+
   let results = [...USERS_DATABASE]
 
   if (role && role !== 'all') {
@@ -140,6 +191,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     success: true,
+    source: 'fallback',
     summary,
     count: results.length,
     data: results,
@@ -150,6 +202,34 @@ export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json()
     const { userId, role, status, plan } = body
+
+    if (isSupabaseConfigured) {
+      try {
+        const supabase = getServiceSupabase()
+        const updates: Record<string, any> = { updated_at: new Date().toISOString() }
+        if (role) updates.role = role
+        if (status) updates.status = status
+        if (plan) updates.plan = plan
+
+        const { data, error } = await supabase
+          .from('users')
+          .update(updates)
+          .eq('id', userId)
+          .select()
+          .single()
+
+        if (!error && data) {
+          return NextResponse.json({
+            success: true,
+            source: 'supabase',
+            message: 'تم تحديث بيانات المستخدم وصلاحياته بنجاح في Supabase',
+            user: data,
+          })
+        }
+      } catch (e) {
+        console.warn('Supabase update failed, falling back:', e)
+      }
+    }
 
     const userIndex = USERS_DATABASE.findIndex((u) => u.id === userId)
     if (userIndex === -1) {
@@ -162,6 +242,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      source: 'fallback',
       message: 'تم تحديث بيانات المستخدم وصلاحياته بنجاح',
       user: USERS_DATABASE[userIndex],
     })
@@ -169,3 +250,4 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }
+

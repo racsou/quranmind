@@ -46,6 +46,7 @@ import {
   Send,
   Quote,
   Eye,
+  Loader2,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -114,14 +115,35 @@ export function QuranMindDashboard({
   const [evidenceTab, setEvidenceTab] = useState('الدلالات')
   const [overviewMode, setOverviewMode] = useState<'panes' | 'overview'>('panes')
 
-  // Real Mushaf Experience State
-  const [mushafSurah, setMushafSurah] = useState<number>(36) // Default to Surah Ya-Sin
-  const [currentAyahIndex, setCurrentAyahIndex] = useState<number>(37) // Start at Ayah 38 (The Sun and Moon symmetry passage)
-  const [mushafPageSize, setMushafPageSize] = useState<number>(5) // Show 5 verses per page for continuous flowing Mushaf feel
+  // Real Mushaf Experience State: Start at Surah Al-Fatihah (Surah 1) Ayah 1 (index 0)
+  const [mushafSurah, setMushafSurah] = useState<number>(1)
+  const [currentAyahIndex, setCurrentAyahIndex] = useState<number>(0)
+  const [mushafPageSize, setMushafPageSize] = useState<number>(1) // Default: 1 ayah at a time (supports toggling to full page)
   const [copiedAyahKey, setCopiedAyahKey] = useState<string | null>(null)
+  const [isLoadingSurah, setIsLoadingSurah] = useState<boolean>(false)
+  const [surahSource, setSurahSource] = useState<'cache' | 'backend'>('cache')
 
-  // Selected Verse in Mushaf (by clicking on it)
-  const [selectedVerse, setSelectedVerse] = useState<QuranVerse | null>(null)
+  // In-memory cache for loaded Surahs (persists across navigation with zero re-fetches)
+  const surahsCache = useRef<Map<number, QuranVerse[]>>(new Map())
+
+  // Pre-seed cache with Surah Al-Fatihah
+  if (!surahsCache.current.has(1)) {
+    const fatihah = getSurahVerses(1)
+    if (fatihah && fatihah.length > 0) {
+      surahsCache.current.set(1, fatihah)
+    }
+  }
+
+  // Active surah verses (from in-memory cache or fetched from backend)
+  const [currentSurahVerses, setCurrentSurahVerses] = useState<QuranVerse[]>(() => {
+    return surahsCache.current.get(1) || getSurahVerses(1)
+  })
+
+  // Selected Verse in Mushaf (starts with Ayah 1 of Al-Fatihah)
+  const [selectedVerse, setSelectedVerse] = useState<QuranVerse | null>(() => {
+    const fatihah = surahsCache.current.get(1) || getSurahVerses(1)
+    return fatihah[0] || null
+  })
 
   // Audio Playback
   const [playingAyahKey, setPlayingAyahKey] = useState<string | null>(null)
@@ -142,25 +164,127 @@ export function QuranMindDashboard({
     },
   ])
 
-  // Get verses for currently selected Surah
-  const surahVerses = useMemo(() => {
-    return getSurahVerses(mushafSurah)
-  }, [mushafSurah])
+  // Load a surah: checks cache first (0 requests). If cache miss, requests backend and caches.
+  const loadSurah = async (targetSurah: number, targetAyahIndex: number = 0) => {
+    if (targetSurah < 1 || targetSurah > 114) return
+
+    // 1. In-Memory Cache Check: Instant load with 0 network requests
+    if (surahsCache.current.has(targetSurah)) {
+      const cachedVerses = surahsCache.current.get(targetSurah)!
+      console.log(`⚡ [QuranMind Cache HIT] Surah ${targetSurah} retrieved from cache (${cachedVerses.length} verses) - 0 HTTP requests`)
+      setCurrentSurahVerses(cachedVerses)
+      setMushafSurah(targetSurah)
+      setCurrentAyahIndex(targetAyahIndex)
+      setSurahSource('cache')
+      if (cachedVerses[targetAyahIndex]) {
+        setSelectedVerse(cachedVerses[targetAyahIndex])
+      }
+      return
+    }
+
+    // 2. Cache Miss: Make HTTP request to Express Backend (Supabase)
+    setIsLoadingSurah(true)
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:5000/api'
+      console.log(`📡 [QuranMind HTTP Request] Fetching Surah ${targetSurah} from backend: ${backendUrl}/quran/surahs/${targetSurah}/verses`)
+
+      const response = await fetch(`${backendUrl}/quran/surahs/${targetSurah}/verses`)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const result = await response.json()
+
+      let fetchedVerses: QuranVerse[] = []
+      if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+        fetchedVerses = result.data
+      } else {
+        fetchedVerses = getSurahVerses(targetSurah)
+      }
+
+      // Store in memory cache
+      surahsCache.current.set(targetSurah, fetchedVerses)
+      console.log(`💾 [QuranMind Cached] Surah ${targetSurah} saved to in-memory cache (${fetchedVerses.length} verses)`)
+
+      setCurrentSurahVerses(fetchedVerses)
+      setMushafSurah(targetSurah)
+      setCurrentAyahIndex(targetAyahIndex)
+      setSurahSource('backend')
+      if (fetchedVerses[targetAyahIndex]) {
+        setSelectedVerse(fetchedVerses[targetAyahIndex])
+      }
+    } catch (err) {
+      console.error(`❌ [QuranMind Error] Failed to fetch Surah ${targetSurah} from backend, falling back to local dataset:`, err)
+      const fallbackVerses = getSurahVerses(targetSurah)
+      surahsCache.current.set(targetSurah, fallbackVerses)
+      setCurrentSurahVerses(fallbackVerses)
+      setMushafSurah(targetSurah)
+      setCurrentAyahIndex(targetAyahIndex)
+      setSurahSource('backend')
+      if (fallbackVerses[targetAyahIndex]) {
+        setSelectedVerse(fallbackVerses[targetAyahIndex])
+      }
+    } finally {
+      setIsLoadingSurah(false)
+    }
+  }
+
+  // Handle Next Navigation (within Surah or to next Surah from backend)
+  const handleNextAyahOrPage = async () => {
+    if (isLoadingSurah) return
+    const totalVerses = currentSurahVerses.length || currentSurahMeta.numberOfAyahs
+    const nextIndex = currentAyahIndex + mushafPageSize
+
+    if (nextIndex < totalVerses) {
+      // Advance to next ayah/page within the current Surah
+      setCurrentAyahIndex(nextIndex)
+      if (currentSurahVerses[nextIndex]) {
+        setSelectedVerse(currentSurahVerses[nextIndex])
+      }
+    } else {
+      // Reached the end/last ayah of current Surah -> Request and load next Surah!
+      if (mushafSurah < 114) {
+        await loadSurah(mushafSurah + 1, 0)
+      }
+    }
+  }
+
+  // Handle Previous Navigation (within Surah or back to previous Surah from cache)
+  const handlePrevAyahOrPage = async () => {
+    if (isLoadingSurah) return
+    const prevIndex = currentAyahIndex - mushafPageSize
+
+    if (prevIndex >= 0) {
+      // Go back to previous ayah/page within the current Surah
+      setCurrentAyahIndex(prevIndex)
+      if (currentSurahVerses[prevIndex]) {
+        setSelectedVerse(currentSurahVerses[prevIndex])
+      }
+    } else {
+      // At the start of the current Surah -> Go back to previous Surah from cache (0 requests)
+      if (mushafSurah > 1) {
+        const prevSurahNum = mushafSurah - 1
+        const prevMeta = SURAHS_META.find((s) => s.number === prevSurahNum)
+        const prevTotal = prevMeta?.numberOfAyahs || 7
+        const targetAyah = Math.max(0, prevTotal - mushafPageSize)
+        await loadSurah(prevSurahNum, targetAyah)
+      }
+    }
+  }
 
   // Paginated slice of verses for the continuous Mushaf page
   const displayedVerses = useMemo(() => {
     const start = Math.max(0, currentAyahIndex)
-    return surahVerses.slice(start, start + mushafPageSize)
-  }, [surahVerses, currentAyahIndex, mushafPageSize])
+    return currentSurahVerses.slice(start, start + mushafPageSize)
+  }, [currentSurahVerses, currentAyahIndex, mushafPageSize])
 
-  // Set default selected verse on mount or surah change
+  // Synchronize selected verse with current displayed verses
   useEffect(() => {
-    if (displayedVerses.length > 0 && !selectedVerse) {
-      // Find Ayah 40 (symmetry verse) if in Ya-Sin, else first displayed verse
-      const symmetryVerse = displayedVerses.find((v) => v.ayah === 40) || displayedVerses[0]
-      setSelectedVerse(symmetryVerse)
+    if (displayedVerses.length > 0) {
+      if (!selectedVerse || selectedVerse.surah !== mushafSurah) {
+        setSelectedVerse(displayedVerses[0])
+      }
     }
-  }, [displayedVerses, selectedVerse])
+  }, [displayedVerses, selectedVerse, mushafSurah])
 
   // Current active Surah metadata
   const currentSurahMeta = useMemo(() => {
@@ -667,16 +791,15 @@ export function QuranMindDashboard({
                       <span className="font-bold text-sm text-white">المصحف الشريف (تلاوة وتدبر)</span>
                     </div>
 
-                    {/* Surah Selector Dropdown */}
-                    <div className="quran-toolbar">
+                    {/* Surah Selector Dropdown & View Mode */}
+                    <div className="quran-toolbar flex items-center gap-2">
                       <select
                         value={mushafSurah}
                         onChange={(e) => {
-                          setMushafSurah(Number(e.target.value))
-                          setCurrentAyahIndex(0)
-                          setSelectedVerse(null)
+                          loadSurah(Number(e.target.value), 0)
                         }}
                         className="surah-select-box"
+                        disabled={isLoadingSurah}
                       >
                         {SURAHS_META.map((s) => (
                           <option key={s.number} value={s.number}>
@@ -684,6 +807,26 @@ export function QuranMindDashboard({
                           </option>
                         ))}
                       </select>
+
+                      {/* Display Mode Toggle: 1 Ayah vs Full Page */}
+                      <div className="flex items-center gap-1 bg-[#041d33] p-0.5 rounded-md border border-cyan-900/50 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setMushafPageSize(1)}
+                          className={`px-2 py-0.5 rounded transition ${mushafPageSize === 1 ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                          title="عرض آية بآية للتدبر الفردي"
+                        >
+                          آية بآية
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMushafPageSize(7)}
+                          className={`px-2 py-0.5 rounded transition ${mushafPageSize > 1 ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                          title="عرض متصل للآيات"
+                        >
+                          صفحة
+                        </button>
+                      </div>
 
                       <button
                         type="button"
@@ -704,7 +847,9 @@ export function QuranMindDashboard({
                   <div className="mushaf-real-page">
                     {/* Top Mushaf Header: Juz / Surah Plaque / Hizb */}
                     <div className="mushaf-page-topbar">
-                      <span className="mushaf-juz-tag">الجزء {currentSurahMeta.number > 30 ? '٢٣' : '١'}</span>
+                      <span className="mushaf-juz-tag">
+                        الجزء {displayedVerses[0]?.juz || (mushafSurah === 1 ? '١' : mushafSurah === 2 ? (currentAyahIndex < 142 ? '١' : currentAyahIndex < 253 ? '٢' : '٣') : '١')}
+                      </span>
 
                       <div className="mushaf-surah-plaque">
                         <span className="plaque-title">سُورَةُ {currentSurahMeta.name}</span>
@@ -713,7 +858,9 @@ export function QuranMindDashboard({
                         </span>
                       </div>
 
-                      <span className="mushaf-hizb-tag">الحزب {currentSurahMeta.number > 30 ? '٤٦' : '١'}</span>
+                      <span className="mushaf-hizb-tag">
+                        الحزب {mushafSurah === 1 ? '١' : mushafSurah === 2 ? (currentAyahIndex < 75 ? '١' : currentAyahIndex < 142 ? '٢' : '٣') : '١'}
+                      </span>
                     </div>
 
                     {/* Basmalah Calligraphy Cartouche */}
@@ -727,31 +874,38 @@ export function QuranMindDashboard({
 
                     {/* Continuous Justified Mushaf Text Flow */}
                     <div className="mushaf-page-body">
-                      <div className="mushaf-flowing-text font-serif">
-                        {displayedVerses.map((verse) => {
-                          const isSelected = selectedVerse?.id === verse.id
-                          const isContextAttached = attachedVerse?.id === verse.id
-                          const isPlaying = playingAyahKey === `${verse.surah}:${verse.ayah}`
+                      {isLoadingSurah ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-center text-cyan-300 gap-3">
+                          <Loader2 className="w-7 h-7 animate-spin text-cyan-400" />
+                          <span className="text-xs font-semibold">جاري جلب الآيات الكريمة من الخادم (Express & Supabase)...</span>
+                        </div>
+                      ) : (
+                        <div className="mushaf-flowing-text font-serif">
+                          {displayedVerses.map((verse) => {
+                            const isSelected = selectedVerse?.id === verse.id
+                            const isContextAttached = attachedVerse?.id === verse.id
+                            const isPlaying = playingAyahKey === `${verse.surah}:${verse.ayah}`
 
-                          return (
-                            <span
-                              key={verse.id}
-                              onClick={() => handleVerseClick(verse)}
-                              className={`mushaf-verse-span ${
-                                isSelected ? 'is-selected' : ''
-                              } ${isContextAttached ? 'is-attached' : ''} ${
-                                isPlaying ? 'is-playing' : ''
-                              }`}
-                              title={`انقر لتحديد الآية ${verse.ayah} وإضافتها للوكيل الذكي`}
-                            >
-                              <span className="verse-arabic-words">{verse.text}</span>
-                              <span className="mushaf-ayah-medallion">
-                                ﴿{verse.ayah}﴾
+                            return (
+                              <span
+                                key={verse.id}
+                                onClick={() => handleVerseClick(verse)}
+                                className={`mushaf-verse-span ${
+                                  isSelected ? 'is-selected' : ''
+                                } ${isContextAttached ? 'is-attached' : ''} ${
+                                  isPlaying ? 'is-playing' : ''
+                                }`}
+                                title={`انقر لتحديد الآية ${verse.ayah} وإضافتها للوكيل الذكي`}
+                              >
+                                <span className="verse-arabic-words">{verse.text}</span>
+                                <span className="mushaf-ayah-medallion">
+                                  ﴿{verse.ayah}﴾
+                                </span>
                               </span>
-                            </span>
-                          )
-                        })}
-                      </div>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     {/* Interactive Selected Verse Dock with "Add to Chat Agent" Button */}
@@ -831,24 +985,84 @@ export function QuranMindDashboard({
                     <div className="mushaf-page-footer">
                       <button
                         type="button"
-                        disabled={currentAyahIndex <= 0}
-                        onClick={() => setCurrentAyahIndex((prev) => Math.max(0, prev - mushafPageSize))}
+                        disabled={isLoadingSurah || (mushafSurah === 1 && currentAyahIndex <= 0)}
+                        onClick={handlePrevAyahOrPage}
                         className="mushaf-page-btn"
+                        title={
+                          currentAyahIndex > 0
+                            ? 'الآيات السابقة'
+                            : mushafSurah > 1
+                            ? `السورة السابقة (سورة ${SURAHS_META[mushafSurah - 2]?.name || ''}) - بدون طلب من الذاكرة`
+                            : 'بداية المصحف الشريف'
+                        }
                       >
-                        ‹ الآيات السابقة
+                        {currentAyahIndex > 0 ? (
+                          '‹ الآية السابقة'
+                        ) : mushafSurah > 1 ? (
+                          `‹ سورة ${SURAHS_META[mushafSurah - 2]?.name || ''}`
+                        ) : (
+                          '‹ البداية'
+                        )}
                       </button>
 
-                      <span className="mushaf-page-number">
-                        الآيات {currentAyahIndex + 1} إلى {Math.min(currentAyahIndex + mushafPageSize, currentSurahMeta.numberOfAyahs)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="mushaf-page-number">
+                          {mushafPageSize === 1
+                            ? `الآية ${currentAyahIndex + 1} من ${currentSurahVerses.length || currentSurahMeta.numberOfAyahs}`
+                            : `الآيات ${currentAyahIndex + 1} إلى ${Math.min(currentAyahIndex + mushafPageSize, currentSurahVerses.length || currentSurahMeta.numberOfAyahs)} من ${currentSurahVerses.length || currentSurahMeta.numberOfAyahs}`}
+                        </span>
+
+                        {/* Status indicator: Cache or Backend */}
+                        <span
+                          className={`text-[9.5px] px-2 py-0.5 rounded-full font-mono flex items-center gap-1 transition-all ${
+                            surahSource === 'cache'
+                              ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-700/50'
+                              : 'bg-cyan-950/80 text-cyan-300 border border-cyan-700/50'
+                          }`}
+                          title={
+                            surahSource === 'cache'
+                              ? 'تم استرجاع السورة من الذاكرة المؤقتة (بدون طلب خادم)'
+                              : 'تم جلب السورة من خادم Express وقاعدة بيانات Supabase'
+                          }
+                        >
+                          {surahSource === 'cache' ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                              <span>ذاكرة مؤقتة (0 طلب)</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                              <span>خادم متصل</span>
+                            </>
+                          )}
+                        </span>
+                      </div>
 
                       <button
                         type="button"
-                        disabled={currentAyahIndex + mushafPageSize >= currentSurahMeta.numberOfAyahs}
-                        onClick={() => setCurrentAyahIndex((prev) => prev + mushafPageSize)}
+                        disabled={isLoadingSurah || (mushafSurah === 114 && currentAyahIndex + mushafPageSize >= (currentSurahVerses.length || currentSurahMeta.numberOfAyahs))}
+                        onClick={handleNextAyahOrPage}
                         className="mushaf-page-btn"
+                        title={
+                          currentAyahIndex + mushafPageSize < (currentSurahVerses.length || currentSurahMeta.numberOfAyahs)
+                            ? 'الآيات التالية'
+                            : mushafSurah < 114
+                            ? `طلب السورة التالية (سورة ${SURAHS_META[mushafSurah]?.name || ''}) من الخادم`
+                            : 'نهاية المصحف الشريف'
+                        }
                       >
-                        الآيات التالية ›
+                        {isLoadingSurah ? (
+                          <span className="flex items-center gap-1">
+                            <Loader2 className="w-3 h-3 animate-spin" /> جاري الجلب...
+                          </span>
+                        ) : currentAyahIndex + mushafPageSize < (currentSurahVerses.length || currentSurahMeta.numberOfAyahs) ? (
+                          'الآية التالية ›'
+                        ) : mushafSurah < 114 ? (
+                          `سورة ${SURAHS_META[mushafSurah]?.name || ''} ›`
+                        ) : (
+                          'النهاية ›'
+                        )}
                       </button>
                     </div>
                   </div>

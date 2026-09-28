@@ -1,4 +1,54 @@
 services:
+  # 1. Supabase PostgreSQL Database with Schema Pre-loaded
+  supabase-db:
+    image: postgres:16-alpine
+    container_name: quranmind-supabase-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - supabase_db_data:/var/lib/postgresql/data
+      - ./docker/supabase/01-roles.sql:/docker-entrypoint-initdb.d/01-roles.sql:ro
+      - ./supabase_schema.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Supabase PostgREST (Auto-generated REST API for @supabase/supabase-js)
+  supabase-rest:
+    image: postgrest/postgrest:v12.2.0
+    container_name: quranmind-supabase-rest
+    restart: unless-stopped
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+    environment:
+      - PGRST_DB_URI=postgres://authenticator:postgres@supabase-db:5432/postgres
+      - PGRST_DB_SCHEMAS=public
+      - PGRST_DB_ANON_ROLE=anon
+      - PGRST_JWT_SECRET=super-secret-jwt-token-with-at-least-32-characters-long
+    ports:
+      - "3001:3000"
+
+  # 3. Supabase Local API Gateway (matches standard Supabase local URL: http://localhost:54321)
+  supabase-gateway:
+    image: nginx:1.31
+    container_name: quranmind-supabase-gateway
+    restart: unless-stopped
+    depends_on:
+      - supabase-rest
+    ports:
+      - "54321:54321"
+    volumes:
+      - ./docker/supabase/nginx.conf:/etc/nginx/nginx.conf:ro
+
+  # 4. Redis Cache & Queue
   redis:
     image: redis:7-alpine
     container_name: quranmind-redis
@@ -14,19 +64,8 @@ services:
       timeout: 3s
       retries: 5
 
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: quranmind-redis-commander
-    restart: unless-stopped
-    environment:
-      - REDIS_HOSTS=local:redis:6379
-    ports:
-      - "8081:8081"
-    depends_on:
-      - redis
-    profiles:
-      - tools
-
 volumes:
+  supabase_db_data:
+    driver: local
   redis_data:
     driver: local

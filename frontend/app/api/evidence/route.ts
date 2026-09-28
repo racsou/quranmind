@@ -2,11 +2,27 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, fallbackStore } from '@/lib/db'
 import { evidenceItems } from '@/lib/db/schema'
 import { eq, desc } from 'drizzle-orm'
+import { getServiceSupabase, isSupabaseConfigured } from '@/lib/supabase/client'
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const projectId = searchParams.get('projectId') || undefined
+
+    if (isSupabaseConfigured) {
+      try {
+        const supabase = getServiceSupabase()
+        let query = supabase.from('evidence_items').select('*')
+        if (projectId) query = query.eq('project_id', projectId)
+
+        const { data, error } = await query.order('created_at', { ascending: false })
+        if (!error && data) {
+          return NextResponse.json({ success: true, source: 'supabase', data })
+        }
+      } catch (e) {
+        console.warn('Supabase fetch failed in evidence, checking local:', e)
+      }
+    }
 
     if (db) {
       const query = db.select().from(evidenceItems)
@@ -49,6 +65,31 @@ export async function POST(req: NextRequest) {
         { success: false, error: 'بيانات الدليل غير مكتملة (السورة، الآية، النص، نوع التحليل)' },
         { status: 400 }
       )
+    }
+
+    if (isSupabaseConfigured) {
+      try {
+        const supabase = getServiceSupabase()
+        const newEvidence = {
+          project_id: projectId || null,
+          user_id: userId,
+          surah: Number(surah),
+          ayah: Number(ayah),
+          surah_name: surahName || null,
+          verse_text: verseText,
+          analysis_type: analysisType,
+          classification,
+          calculation_data: calculationData || null,
+          sources: sources || null,
+          notes: notes || null,
+        }
+        const { data, error } = await supabase.from('evidence_items').insert(newEvidence).select().single()
+        if (!error && data) {
+          return NextResponse.json({ success: true, source: 'supabase', data })
+        }
+      } catch (e) {
+        console.warn('Supabase evidence insert failed, checking local DB:', e)
+      }
     }
 
     if (db) {

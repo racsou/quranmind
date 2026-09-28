@@ -333,22 +333,86 @@ npx @openapitools/openapi-generator-cli generate \
    DEEPSEEK_API_KEY=sk-...
    ```
 
-4. **تشغيل الخادم في بيئة التطوير**:
-   ```bash
-   npm run dev
+### 🗂️ هيكلية المشروع الموحد (Monorepo Architecture)
+
+تمت إعادة هيكلة المشروع إلى منظومة متكاملة لدعم نسخة الـ SaaS الحالية والتمهيد للنسخة المحلية (Local Edition) مستقبلاً:
+
+```text
+quranmind/
+├── frontend/                 # تطبيق Next.js 16 المتكامل (React 19 + Tailwind + UI)
+│   ├── app/                  # واجهات الباحث، لوحة الإدارة، التبويبات والمحركات
+│   ├── components/           # مكونات المصحف، الرسم البياني، الرواة، وعارض المخطوطات
+│   ├── lib/                  # مكتبات التحليل الصرفي، المصطلح، بوابات الدفع، وقواعد البيانات
+│   │   ├── quran/data/       # ملفات المصدر (6,236 آية، المتشابهات، والعبارات المكررة)
+│   │   └── supabase/         # عميل Supabase للواجهة الأمامية
+│   └── .env.local            # إعدادات الواجهة الأمامية
+│
+├── backend/                  # خادم Express API المستقل (TypeScript)
+│   ├── src/
+│   │   ├── routes/           # مسارات الـ API (quran, hadith, users, projects, health)
+│   │   ├── db/               # عميل Supabase ومخطط SQL
+│   │   └── scripts/          # سكريبت الاستيراد والترحيل الآلي (seed-supabase.ts)
+│   ├── Dockerfile            # حاوية الإنتاج للخادم الخلفي
+│   └── .env                  # إعدادات الخادم وقاعدة بيانات Supabase
+│
+├── supabase_schema.sql       # مخطط قاعدة البيانات الشامل الجاهز للاستيراد المباشر في Supabase
+├── docker-compose.yml        # تشغيل الخدمات (Backend + Redis + قاعدة بيانات محلية اختيارية)
+└── package.json              # إدارة سريعة للأوامر عبر المنظومة الموحدة
+```
+
+---
+
+### 🗄️ تهيئة واستيراد قاعدة بيانات Supabase (Supabase Database Setup & Import)
+
+تم نقل كافة البيانات من الملفات الثابتة والمصفوفات البرمجية لتكون مخزنة مركزياً داخل **Supabase (PostgreSQL)**:
+- **القرآن الكريم**: كافة السور الـ 114 والآيات الـ 6,236 بالنص العثماني الحفص والترجمة الإنجليزية المعتمدة، مع العبارات المكررة (814 عبارة) والمتشابهات اللفظية (1,162 موضعاً) وتفاسير ابن كثير والجلالين.
+- **الحديث الشريف**: المجموعات التسع الكبرى، الكتب التراثية، أئمة الحديث ونقاد الجرح والتعديل، تراجم الرواة ومراتبهم، ومتون الأحاديث مع شبكات الأسانيد ورتب المصطلح وتخريج الشواهد والمتابعات.
+- **إدارة المستخدمين والاشتراكات**: ملفات المستخدمين، الصلاحيات (Admin, Scholar, Student, Patron)، وبوابات الدفع (SlickPay بالدينار الجزائري وStripe بالدولار).
+- **مشاريع البحث والأدلة العلمية**: مشاريع الباحثين المحفوظة، عناصر الأدلة الإعجازية المحسوبة، الملاحظات، والمحفوظات.
+
+#### خطوات الترحيل والاستيراد:
+
+1. **إنشاء الجداول في Supabase**:
+   - افتح لوحة تحكم مشروعك في [Supabase](https://supabase.com/dashboard).
+   - انتقل إلى **SQL Editor**.
+   - انسخ محتوى الملف `supabase_schema.sql` (الموجود في المجلد الجذري) والصقه واضغط **Run**.
+
+2. **ضبط مفاتيح الاتصال**:
+   - في المجلد `backend/.env` (وكذلك `frontend/.env.local`):
+   ```env
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_ANON_KEY=your-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
    ```
 
-5. **فتح التطبيق في المتصفح**:
-   - واجهة الباحث: [http://localhost:3000/workspace](http://localhost:3000/workspace)
-   - لوحة التحكم: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
-   - توثيق الـ API: [http://localhost:3000/dashboard/api-docs](http://localhost:3000/dashboard/api-docs)
-   - لوحة الإدارة: [http://localhost:3000/admin](http://localhost:3000/admin)
-
-6. **التحقق من سلامة البناء (Build Verification)**:
+3. **تشغيل سكريبت الاستيراد الآلي**:
    ```bash
-   npx tsc --noEmit
-   npm run build
+   # من المجلد الجذري للمشروع:
+   npm run seed:supabase
+
+   # أو من داخل مجلد backend:
+   cd backend && npm run seed
    ```
+   يقوم السكريبت بقراءة نصوص القرآن الـ 6,236 كاملة ومتون الأحاديث والرواة والمستخدمين وإدراجها بنجاح داخل جداول Supabase في دفعات منظمة (`upsert`).
+
+---
+
+### 🚀 تشغيل المنصة في بيئة التطوير
+
+```bash
+# 1. تشغيل الخادم الخلفي (Express API - Port 5000):
+npm run dev:backend
+
+# 2. تشغيل الواجهة الأمامية (Next.js Frontend - Port 3000):
+npm run dev:frontend
+```
+
+**الروابط التفاعلية**:
+- واجهة الباحث: [http://localhost:3000/workspace](http://localhost:3000/workspace)
+- لوحة الإدارة والمستخدمين: [http://localhost:3000/admin](http://localhost:3000/admin)
+- فحص صحة الخادم وقاعدة البيانات: [http://localhost:5000/api/health](http://localhost:5000/api/health)
+- واجهة الـ API للقرآن والحديث: [http://localhost:5000/api/quran/surahs](http://localhost:5000/api/quran/surahs)
+
 
 ---
 
