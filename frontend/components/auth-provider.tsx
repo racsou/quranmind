@@ -25,7 +25,34 @@ function ClerkSupabaseSync() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: savedRole }),
-      }).catch((e) => console.warn('Clerk to Supabase sync warning:', e))
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.success && data.emailConfirmed === false) {
+            // Delete confirmation cookie to force verification
+            document.cookie = 'qm_email_confirmed=; path=/; max-age=0;'
+            const unverifiedEmail =
+              data.email || user.primaryEmailAddress?.emailAddress || ''
+            if (unverifiedEmail) {
+              document.cookie = `qm_unverified_email=${encodeURIComponent(
+                unverifiedEmail
+              )}; path=/; max-age=86400; SameSite=Lax`
+              try {
+                localStorage.setItem('qm_unverified_email', unverifiedEmail)
+              } catch {}
+            }
+
+            if (
+              typeof window !== 'undefined' &&
+              window.location.pathname.startsWith('/dashboard')
+            ) {
+              window.location.href =
+                data.redirect ||
+                `/verify-email?email=${encodeURIComponent(unverifiedEmail)}`
+            }
+          }
+        })
+        .catch((e) => console.warn('Clerk to Supabase sync warning:', e))
     }
   }, [isSignedIn, user])
 

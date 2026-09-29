@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { currentUser } from '@clerk/nextjs/server'
 import { getServiceSupabase, isSupabaseConfigured } from '@/lib/supabase/client'
+import { validateRealEmail } from '@/lib/email/email-validator'
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,6 +27,19 @@ export async function POST(req: NextRequest) {
         authenticated: true,
         error: 'لم يتم العثور على بريد إلكتروني في حساب Clerk',
       })
+    }
+
+    // Validate real email existence
+    const emailValidation = await validateRealEmail(email)
+    if (!emailValidation.isValid) {
+      return NextResponse.json(
+        {
+          success: false,
+          authenticated: true,
+          error: emailValidation.error || 'البريد الإلكتروني المسجل غير صالح أو غير حقيقي.',
+        },
+        { status: 400 }
+      )
     }
 
     const fullName =
@@ -59,27 +73,35 @@ export async function POST(req: NextRequest) {
         .or(`id.eq.${clerkUser.id},email.eq.${email}`)
         .maybeSingle()
 
+      const isClerkVerified =
+        clerkUser.emailAddresses?.[0]?.verification?.status === 'verified' ||
+        provider.startsWith('oauth_') ||
+        provider === 'google'
+
+      let activeUser = existingUser
+
       if (existingUser) {
         // Update user fields
+        const shouldConfirmEmail = existingUser.email_confirmed || isClerkVerified
         const { data: updated, error: updateErr } = await supabase
           .from('users')
           .update({
             name: fullName || existingUser.name,
             has_password: hasPassword,
             auth_provider: provider,
+            email_confirmed: shouldConfirmEmail,
+            confirmation_code: shouldConfirmEmail ? null : existingUser.confirmation_code,
             updated_at: new Date().toISOString(),
           })
           .eq('id', existingUser.id)
           .select()
           .single()
 
-        return NextResponse.json({
-          success: true,
-          authenticated: true,
-          action: 'updated',
-          user: updated || existingUser,
-        })
+        activeUser = updated || existingUser
       } else {
+        // Generate initial confirmation code for new user
+        const initialCode = Math.floor(100000 + Math.random() * 900000).toString()
+
         // Insert new user into Supabase
         const newUser = {
           id: clerkUser.id,
@@ -97,6 +119,9 @@ export async function POST(req: NextRequest) {
           auth_provider: provider,
           storage_used_mb: 25,
           quota_limit: 5000,
+          email_confirmed: isClerkVerified,
+          confirmation_code: isClerkVerified ? null : initialCode,
+          confirmation_sent_at: new Date().toISOString(),
           joined_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -110,26 +135,70 @@ export async function POST(req: NextRequest) {
 
         if (insertErr) {
           console.error('Supabase user insert error:', insertErr)
-          return NextResponse.json({
-            success: true,
-            authenticated: true,
-            fallbackUser: newUser,
-            warning: insertErr.message,
+          activeUser = newUser as any
+        } else {
+          activeUser = created
+        }
+      }
+
+      const isEmailConfirmed = Boolean(activeUser?.email_confirmed)
+
+      // If email is not confirmed, dispatch 6-digit PIN and enforce redirect
+      if (!isEmailConfirmed) {
+        const pinCode = activeUser?.confirmation_code || Math.floor(100000 + Math.random() * 900000).toString()
+        try {
+          const { sendVerificationEmail } = await import('@/lib/email/email-sender')
+          await sendVerificationEmail({
+            toEmail: email,
+            userName: fullName,
+            code: pinCode,
           })
+        } catch (mailErr) {
+          console.warn('Failed to send verification email:', mailErr)
         }
 
-        return NextResponse.json({
+        const res = NextResponse.json({
           success: true,
           authenticated: true,
-          action: 'created',
-          user: created,
+          emailConfirmed: false,
+          email: email,
+          redirect: `/verify-email?email=${encodeURIComponent(email)}`,
+          message: 'الحساب قيد الانتظار: يرجى تأكيد بريدك الإلكتروني برمز التحقق (PIN).',
+          user: activeUser,
         })
+
+        // Invalidate confirmed cookie and set unverified email cookie
+        res.cookies.delete('qm_email_confirmed')
+        res.cookies.set('qm_unverified_email', email, {
+          path: '/',
+          maxAge: 86400,
+          sameSite: 'lax',
+        })
+        return res
       }
+
+      // Email is confirmed
+      const res = NextResponse.json({
+        success: true,
+        authenticated: true,
+        emailConfirmed: true,
+        action: existingUser ? 'updated' : 'created',
+        user: activeUser,
+      })
+
+      res.cookies.set('qm_email_confirmed', 'true', {
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60,
+        sameSite: 'lax',
+      })
+      res.cookies.delete('qm_unverified_email')
+      return res
     }
 
     return NextResponse.json({
       success: true,
       authenticated: true,
+      emailConfirmed: true,
       user: {
         id: clerkUser.id,
         name: fullName,

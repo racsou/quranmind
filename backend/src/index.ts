@@ -6,6 +6,7 @@ import quranRoutes from './routes/quran.routes.js'
 import hadithRoutes from './routes/hadith.routes.js'
 import usersRoutes from './routes/users.routes.js'
 import projectsRoutes from './routes/projects.routes.js'
+import emailRoutes from './routes/email.routes.js'
 
 const app = express()
 
@@ -35,11 +36,13 @@ app.use('/api/quran', quranRoutes)
 app.use('/api/hadith', hadithRoutes)
 app.use('/api/users', usersRoutes)
 app.use('/api/projects', projectsRoutes)
+app.use('/api/email', emailRoutes)
 
 // Backward Compatibility Aliases for /v1 routes
 app.use('/v1/quran', quranRoutes)
 app.use('/v1/hadith', hadithRoutes)
 app.use('/v1/users', usersRoutes)
+app.use('/v1/email', emailRoutes)
 
 // Root endpoint
 app.get('/', (req, res) => {

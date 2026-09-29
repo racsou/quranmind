@@ -27,13 +27,13 @@ import {
   Receipt,
   Award,
 } from 'lucide-react'
+import { PaymentCheckoutModal } from './payment-checkout-modal'
 
 export function UserSettingsView() {
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'security' | 'billing' | 'ai' | 'preferences'>('profile')
   const [savedSuccess, setSavedSuccess] = useState(false)
   const [resetSuccess, setResetSuccess] = useState(false)
   const [upgradeSuccess, setUpgradeSuccess] = useState<string | null>(null)
-  const [upgradeLoading, setUpgradeLoading] = useState(false)
   const [loadingProfile, setLoadingProfile] = useState(true)
 
   // Real Database User Profile State (Supabase)
@@ -45,6 +45,29 @@ export function UserSettingsView() {
   const [gateway, setGateway] = useState<'slickpay' | 'stripe'>('slickpay')
   const [currency, setCurrency] = useState<'DZD' | 'USD'>('DZD')
   const [amountPaid, setAmountPaid] = useState<number>(2500)
+
+  // Checkout Modal State
+  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false)
+  const [checkoutPlan, setCheckoutPlan] = useState<'pro' | 'patron'>('pro')
+  const [checkoutGateway, setCheckoutGateway] = useState<'slickpay' | 'stripe'>('slickpay')
+  const [invoicesList, setInvoicesList] = useState<any[]>([
+    {
+      serial: 'PAY-0734462',
+      date: '2026-09-21',
+      planTitle: 'اشتراك الباحث الأكاديمي',
+      amount: '2,500 DZD',
+      gateway: 'SlickPay (SATIM)',
+      status: 'مكتمل ✓',
+    },
+    {
+      serial: 'PAY-0591204',
+      date: '2026-08-21',
+      planTitle: 'اشتراك الباحث الأكاديمي',
+      amount: '2,500 DZD',
+      gateway: 'SlickPay (SATIM)',
+      status: 'مكتمل ✓',
+    },
+  ])
   const [hasPassword, setHasPassword] = useState<boolean>(true)
   const [authProvider, setAuthProvider] = useState<string>('password')
 
@@ -159,50 +182,41 @@ export function UserSettingsView() {
     setTimeout(() => setSavedSuccess(false), 3000)
   }
 
-  // Real plan upgrade handler
-  const handleUpgradePlan = async (
-    newPlan: 'pro' | 'patron',
-    newGateway: 'slickpay' | 'stripe',
-    newCurrency: 'DZD' | 'USD',
-    amount: number
-  ) => {
-    setUpgradeLoading(true)
-    setUpgradeSuccess(null)
-    try {
-      const res = await fetch('/api/user/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: userId,
-          email: email,
-          plan: newPlan,
-          role: newPlan === 'patron' ? 'patron' : 'scholar',
-          gateway: newGateway,
-          currency: newCurrency,
-          amountPaid: amount,
-        }),
-      })
+  // Open Checkout Modal for Real Payment (SlickPay SATIM or Stripe)
+  const openCheckoutModal = (targetPlan: 'pro' | 'patron', preferredGateway: 'slickpay' | 'stripe' = 'slickpay') => {
+    setCheckoutPlan(targetPlan)
+    setCheckoutGateway(preferredGateway)
+    setCheckoutModalOpen(true)
+  }
 
-      const data = await res.json()
-      if (data.success) {
-        setPlan(newPlan)
-        setRole(newPlan === 'patron' ? 'patron' : 'scholar')
-        setGateway(newGateway)
-        setCurrency(newCurrency)
-        setAmountPaid(amount)
-        setUpgradeSuccess(
-          `تمت ترقية الحساب بنجاح إلى ${
-            newPlan === 'patron' ? 'باقة الوقف الرقمي (Patron)' : 'باقة المحقق الأكاديمي (Pro)'
-          }! أصبح الوكيل الذكي ومختبر التناظر متاحين الآن.`
-        )
-      } else {
-        alert('تعذر إكمال الترقية: ' + (data.error || 'خطأ غير متوقع'))
-      }
-    } catch (err: any) {
-      alert('خطأ في الاتصال بالخادم: ' + err.message)
-    } finally {
-      setUpgradeLoading(false)
+  // Real payment success callback from PaymentCheckoutModal
+  const handlePaymentSuccess = (invoice: any) => {
+    const isPatron = checkoutPlan === 'patron'
+    const newRole = isPatron ? 'patron' : 'scholar'
+    const newAmount = isPatron ? (checkoutGateway === 'slickpay' ? 5000 : 49) : (checkoutGateway === 'slickpay' ? 2500 : 19)
+    const newCurrency = checkoutGateway === 'slickpay' ? 'DZD' : 'USD'
+
+    setPlan(checkoutPlan)
+    setRole(newRole)
+    setGateway(checkoutGateway)
+    setCurrency(newCurrency)
+    setAmountPaid(newAmount)
+
+    const newInvoiceRecord = {
+      serial: invoice?.serial || `PAY-${Date.now().toString().slice(-6)}QM`,
+      date: invoice?.date || new Date().toISOString().split('T')[0],
+      planTitle: isPatron ? 'اشتراك باقة الوقف الرقمي (Patron)' : 'اشتراك باقة المحقق الأكاديمي (Pro)',
+      amount: invoice?.amount || `${newAmount} ${newCurrency}`,
+      gateway: checkoutGateway === 'slickpay' ? 'SlickPay (SATIM)' : 'Stripe Payments',
+      status: 'مكتمل ✓',
     }
+
+    setInvoicesList((prev) => [newInvoiceRecord, ...prev])
+    setUpgradeSuccess(
+      `تم اعتماد الدفع وتفعيل ${
+        isPatron ? 'باقة الوقف الرقمي (Patron)' : 'باقة المحقق الأكاديمي (Pro Scholar)'
+      } بنجاح عبر ${checkoutGateway === 'slickpay' ? 'SATIM EPG' : 'Stripe'}! أصبحت كافة أدوات الذكاء الاصطناعي متاحة.`
+    )
   }
 
   // Reset All to Defaults
@@ -590,22 +604,20 @@ export function UserSettingsView() {
               {plan === 'free' ? (
                 <button
                   type="button"
-                  onClick={() => handleUpgradePlan('pro', 'slickpay', 'DZD', 2500)}
-                  disabled={upgradeLoading}
+                  onClick={() => openCheckoutModal('pro', 'slickpay')}
                   className="px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-cyan-600/30 transition flex items-center gap-2"
                 >
-                  {upgradeLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  <span>ترقية إلى المحقق (2,500 د.ج)</span>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>ترقية عبر بوابة الدفع (2,500 د.ج)</span>
                 </button>
               ) : plan === 'pro' ? (
                 <button
                   type="button"
-                  onClick={() => handleUpgradePlan('patron', 'slickpay', 'DZD', 5000)}
-                  disabled={upgradeLoading}
+                  onClick={() => openCheckoutModal('patron', 'slickpay')}
                   className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-bold rounded-lg text-xs shadow-md transition flex items-center gap-1.5"
                 >
                   <Award className="w-3.5 h-3.5" />
-                  <span>ترقية إلى الوقف الرقمي (Patron)</span>
+                  <span>الترقية إلى الوقف الرقمي (Patron)</span>
                 </button>
               ) : null}
             </div>
@@ -644,18 +656,16 @@ export function UserSettingsView() {
                 <div className="pt-2 flex flex-col sm:flex-row gap-2">
                   <button
                     type="button"
-                    disabled={upgradeLoading}
-                    onClick={() => handleUpgradePlan('pro', 'slickpay', 'DZD', 2500)}
-                    className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5"
+                    onClick={() => openCheckoutModal('pro', 'slickpay')}
+                    className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950/40"
                   >
                     <CreditCard className="w-3.5 h-3.5" />
                     <span>بالبطاقة الذهبية / CIB (2,500 د.ج)</span>
                   </button>
                   <button
                     type="button"
-                    disabled={upgradeLoading}
-                    onClick={() => handleUpgradePlan('pro', 'stripe', 'USD', 19)}
-                    className="py-2 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5"
+                    onClick={() => openCheckoutModal('pro', 'stripe')}
+                    className="py-2 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-blue-950/40"
                   >
                     <DollarSign className="w-3.5 h-3.5" />
                     <span>Visa / Stripe ($19)</span>
@@ -684,15 +694,22 @@ export function UserSettingsView() {
                     <Check className="w-3.5 h-3.5 text-amber-400" /> خوادم مخصصة وأولوية قصوى لمعالجة استفسارات الذكاء الاصطناعي
                   </li>
                 </ul>
-                <div className="pt-2">
+                <div className="pt-2 flex flex-col sm:flex-row gap-2">
                   <button
                     type="button"
-                    disabled={upgradeLoading}
-                    onClick={() => handleUpgradePlan('patron', 'slickpay', 'DZD', 5000)}
-                    className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-lg text-xs transition flex items-center justify-center gap-1.5"
+                    onClick={() => openCheckoutModal('patron', 'slickpay')}
+                    className="flex-1 py-2 px-3 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-md shadow-amber-950/40"
                   >
-                    <Award className="w-3.5 h-3.5" />
-                    <span>الترقية إلى الوقف الرقمي (5,000 د.ج / $49)</span>
+                    <CreditCard className="w-3.5 h-3.5" />
+                    <span>الذهبية / CIB (5,000 د.ج)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openCheckoutModal('patron', 'stripe')}
+                    className="py-2 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5"
+                  >
+                    <DollarSign className="w-3.5 h-3.5" />
+                    <span>Stripe ($49)</span>
                   </button>
                 </div>
               </div>
@@ -761,40 +778,30 @@ export function UserSettingsView() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 text-slate-200">
-                  <tr>
-                    <td className="py-2.5 px-3 font-mono text-cyan-300">PAY-0734462</td>
-                    <td className="py-2.5 px-3 text-slate-400">2026-09-21</td>
-                    <td className="py-2.5 px-3 font-semibold">اشتراك الباحث الأكاديمي</td>
-                    <td className="py-2.5 px-3 font-bold text-emerald-300">2,500 DZD</td>
-                    <td className="py-2.5 px-3">SlickPay (SATIM)</td>
-                    <td className="py-2.5 px-3">
-                      <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-300 font-bold">
-                        مكتمل ✓
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      <button className="text-cyan-400 hover:text-cyan-200" title="تحميل الإيصال PDF">
-                        <Download className="w-3.5 h-3.5 mx-auto" />
-                      </button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-3 font-mono text-cyan-300">PAY-0591204</td>
-                    <td className="py-2.5 px-3 text-slate-400">2026-08-21</td>
-                    <td className="py-2.5 px-3 font-semibold">اشتراك الباحث الأكاديمي</td>
-                    <td className="py-2.5 px-3 font-bold text-emerald-300">2,500 DZD</td>
-                    <td className="py-2.5 px-3">SlickPay (SATIM)</td>
-                    <td className="py-2.5 px-3">
-                      <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-300 font-bold">
-                        مكتمل ✓
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      <button className="text-cyan-400 hover:text-cyan-200" title="تحميل الإيصال PDF">
-                        <Download className="w-3.5 h-3.5 mx-auto" />
-                      </button>
-                    </td>
-                  </tr>
+                  {invoicesList.map((inv, idx) => (
+                    <tr key={idx}>
+                      <td className="py-2.5 px-3 font-mono text-cyan-300">{inv.serial}</td>
+                      <td className="py-2.5 px-3 text-slate-400">{inv.date}</td>
+                      <td className="py-2.5 px-3 font-semibold">{inv.planTitle}</td>
+                      <td className="py-2.5 px-3 font-bold text-emerald-300">{inv.amount}</td>
+                      <td className="py-2.5 px-3">{inv.gateway}</td>
+                      <td className="py-2.5 px-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-300 font-bold border border-emerald-800">
+                          {inv.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => window.print()}
+                          className="text-cyan-400 hover:text-cyan-200 transition"
+                          title="تحميل / طباعة الإيصال"
+                        >
+                          <Download className="w-3.5 h-3.5 mx-auto" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -1031,6 +1038,18 @@ export function UserSettingsView() {
           </div>
         </form>
       )}
+
+      {/* Payment Gateway Checkout Modal */}
+      <PaymentCheckoutModal
+        isOpen={checkoutModalOpen}
+        onClose={() => setCheckoutModalOpen(false)}
+        plan={checkoutPlan}
+        initialGateway={checkoutGateway}
+        userEmail={email}
+        userName={name}
+        userId={userId}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
     </div>
   )
 }

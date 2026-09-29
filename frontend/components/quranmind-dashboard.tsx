@@ -313,6 +313,23 @@ export function QuranMindDashboard({
     }
   }, [])
 
+  // Enforce mandatory email confirmation on Dashboard mount
+  useEffect(() => {
+    fetch('/api/user/profile')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.user && data.user.emailConfirmed === false) {
+          const targetEmail = data.user.email || ''
+          if (typeof window !== 'undefined') {
+            document.cookie = 'qm_email_confirmed=; path=/; max-age=0;'
+            document.cookie = `qm_unverified_email=${encodeURIComponent(targetEmail)}; path=/; max-age=86400; SameSite=Lax`
+            window.location.href = `/verify-email?email=${encodeURIComponent(targetEmail)}`
+          }
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   // Select a tab from the sidebar or tab strip
   const handleSelectTab = (item: NavItem) => {
     if (!openTabs.some((t) => t.id === item.id)) {

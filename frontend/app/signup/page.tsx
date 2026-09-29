@@ -27,6 +27,8 @@ type AccountType = 'student' | 'scholar' | 'patron' | 'skipped'
 export default function SignupPage() {
   const [step, setStep] = useState<'select-role' | 'register'>('select-role')
   const [selectedRole, setSelectedRole] = useState<AccountType>('student')
+  const [formError, setFormError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSelectRole = (role: AccountType) => {
     setSelectedRole(role)
@@ -236,29 +238,46 @@ export default function SignupPage() {
               <form
                 onSubmit={async (e) => {
                   e.preventDefault()
+                  setFormError(null)
+                  setIsSubmitting(true)
                   const form = e.currentTarget
                   const nameInput = (form.elements.namedItem('fullName') as HTMLInputElement)?.value
                   const emailInput = (form.elements.namedItem('email') as HTMLInputElement)?.value
 
-                  // Sync to Supabase
                   try {
-                    await fetch('/api/user/profile', {
-                      method: 'PATCH',
+                    // 1. Send 6-digit confirmation code & validate real email
+                    const verifyRes = await fetch('/api/auth/send-verification', {
+                      method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        id: `usr-${Date.now()}`,
-                        name: nameInput || 'باحث قرآني',
-                        email: emailInput,
-                        role: selectedRole === 'skipped' ? 'student' : selectedRole,
-                        plan: selectedRole === 'scholar' ? 'pro' : selectedRole === 'patron' ? 'patron' : 'free',
-                      }),
+                      body: JSON.stringify({ email: emailInput }),
                     })
-                  } catch {}
+                    const verifyData = await verifyRes.json()
 
-                  window.location.href = '/dashboard'
+                    if (!verifyData.success) {
+                      setFormError(verifyData.error || 'البريد الإلكتروني غير حقيقي أو غير صالح.')
+                      setIsSubmitting(false)
+                      return
+                    }
+
+                    // 2. Save email and redirect to verification screen
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('qm_unverified_email', emailInput)
+                      document.cookie = `qm_unverified_email=${encodeURIComponent(emailInput)}; path=/; max-age=86400; SameSite=Lax`
+                    }
+
+                    window.location.href = `/verify-email?email=${encodeURIComponent(emailInput)}`
+                  } catch (err: any) {
+                    setFormError(err.message || 'حدث خطأ أثناء معالجة الطلب.')
+                    setIsSubmitting(false)
+                  }
                 }}
                 className="space-y-4 text-xs"
               >
+                {formError && (
+                  <div className="p-3 bg-red-950/80 border border-red-700/80 rounded-xl text-xs text-red-300 flex items-center gap-2 animate-fade-in">
+                    <span className="font-semibold">{formError}</span>
+                  </div>
+                )}
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">الاسم الكامل</label>
                   <input

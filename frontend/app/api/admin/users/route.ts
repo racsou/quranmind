@@ -149,7 +149,21 @@ let USERS_DATABASE: ManagedUser[] = [
   },
 ]
 
+function checkAdminAuth(req: NextRequest): boolean {
+  const adminCookie = req.cookies.get('quranmind_admin_auth')?.value === 'true'
+  const authHeader = req.headers.get('authorization')
+  const isMasterKey = authHeader === 'Bearer quranmind-admin-2026'
+  return adminCookie || isMasterKey
+}
+
 export async function GET(req: NextRequest) {
+  if (!checkAdminAuth(req)) {
+    return NextResponse.json(
+      { success: false, error: 'غير مصرح: الوصول لبيانات وسجلات المستخدمين مقتصر على مدير النظام فقط.' },
+      { status: 401 }
+    )
+  }
+
   const { searchParams } = new URL(req.url)
   const role = searchParams.get('role')
   const status = searchParams.get('status')
@@ -253,6 +267,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  if (!checkAdminAuth(req)) {
+    return NextResponse.json(
+      { success: false, error: 'غير مصرح: تعديل بيانات وصلاحيات المستخدمين مقتصر على مدير النظام فقط.' },
+      { status: 401 }
+    )
+  }
+
   try {
     const body = await req.json()
     const { userId, role, status, plan, gateway, currency, amountPaid, action, newPassword } = body

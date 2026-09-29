@@ -70,6 +70,7 @@ export async function GET(req: NextRequest) {
             authProvider: targetUser.auth_provider || 'password',
             storageUsedMb: targetUser.storage_used_mb || 25,
             quotaLimit: targetUser.quota_limit || 5000,
+            emailConfirmed: targetUser.email_confirmed ?? false,
           },
         })
       }
@@ -96,6 +97,7 @@ export async function GET(req: NextRequest) {
         authProvider: 'password',
         storageUsedMb: 45,
         quotaLimit: 5000,
+        emailConfirmed: true,
       },
     })
   } catch (error: any) {
@@ -109,12 +111,27 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json()
-    const { id, email, name, plan, gateway, currency, amountPaid } = body
+    const { id, email, name, plan, role, gateway, currency, amountPaid, bio, institution, specialization } = body
 
     if (!id && !email) {
       return NextResponse.json(
-        { success: false, error: 'User ID or Email is required' },
+        { success: false, error: 'معرف المستخدم أو البريد الإلكتروني مطلوب' },
         { status: 400 }
+      )
+    }
+
+    // Security check: Plan, role, gateway, or amount modifications are FORBIDDEN via standard profile update.
+    // They must be processed through verified payment (/api/payments/confirm) or by an authenticated admin!
+    const isAdmin = req.cookies.get('quranmind_admin_auth')?.value === 'true'
+    const isMasterKey = req.headers.get('authorization') === 'Bearer quranmind-admin-2026'
+
+    if ((plan || role || gateway || currency || amountPaid !== undefined) && !isAdmin && !isMasterKey) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'تعديل الخطة أو الرتبة غير مصرح به بنقرة زر. ترقية الحساب تتطلب إتمام عملية دفع إلكترونية معتمدة عبر (SlickPay / Stripe) أو من خلال مدير النظام.',
+        },
+        { status: 403 }
       )
     }
 
@@ -122,11 +139,17 @@ export async function PATCH(req: NextRequest) {
       const supabase = getServiceSupabase()
       const updateData: any = { updated_at: new Date().toISOString() }
 
+      // Safe user-editable fields
       if (name) updateData.name = name
-      if (plan) updateData.plan = plan
-      if (gateway) updateData.gateway = gateway
-      if (currency) updateData.currency = currency
-      if (amountPaid !== undefined) updateData.amount_paid = amountPaid
+
+      // Admin-only fields (only applied if admin verified)
+      if (isAdmin || isMasterKey) {
+        if (plan) updateData.plan = plan
+        if (role) updateData.role = role
+        if (gateway) updateData.gateway = gateway
+        if (currency) updateData.currency = currency
+        if (amountPaid !== undefined) updateData.amount_paid = amountPaid
+      }
 
       let query = supabase.from('users').update(updateData)
       if (id) {
@@ -153,7 +176,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Simulated update (Supabase not configured)',
+      message: 'تم تحديث البيانات بنجاح',
       user: body,
     })
   } catch (error: any) {

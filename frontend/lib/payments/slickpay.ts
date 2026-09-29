@@ -7,10 +7,14 @@
 const SLICKPAY_ENV = process.env.SLICKPAY_ENV || 'sandbox' // 'sandbox' | 'production'
 const BASE_URL =
   SLICKPAY_ENV === 'production'
-    ? 'https://prodapi.slick-pay.com/api/v2'
+    ? 'https://api.slick-pay.com/api/v2'
     : 'https://devapi.slick-pay.com/api/v2'
 
-const PUBLIC_KEY = process.env.SLICKPAY_PUBLIC_KEY || 'demo_public_key_slickpay'
+const PUBLIC_KEY =
+  process.env.SLICKPAY_PUBLIC_KEY ||
+  process.env.SLICKPAY_SECRET_KEY ||
+  process.env.SlickPay_Secret_key ||
+  'jibynu9fifcqaegx313s33a71au191n9ck6i7zlxath98kriff'
 
 export interface SlickPayInvoiceItem {
   name: string
@@ -148,8 +152,12 @@ export async function createSlickPayInvoice(params: CreateInvoiceParams): Promis
     })
 
     const data = await res.json()
-    if (data.success && data.url) {
-      return data
+    const paymentUrl = data.url || data.data?.url
+    if (data.success && paymentUrl) {
+      return {
+        ...data,
+        url: paymentUrl,
+      }
     }
     throw new Error(data.message || JSON.stringify(data.errors) || 'Failed to create invoice')
   } catch (error: any) {
@@ -178,7 +186,7 @@ export async function createSlickPayInvoice(params: CreateInvoiceParams): Promis
 }
 
 /**
- * Check invoice completion status
+ * Check invoice completion status (official: response.data.data.payment_status === 'paid')
  */
 export async function getSlickPayInvoiceStatus(invoiceId: number | string): Promise<SlickPayStatusResponse> {
   try {
@@ -191,7 +199,11 @@ export async function getSlickPayInvoiceStatus(invoiceId: number | string): Prom
       },
     })
     const data = await res.json()
-    return data
+    const paymentStatus = data.data?.payment_status || (data.completed === 1 ? 'paid' : 'unpaid')
+    return {
+      ...data,
+      completed: paymentStatus === 'paid' ? 1 : 0,
+    }
   } catch (error) {
     console.error('[SlickPay] checkStatus error:', error)
     return {

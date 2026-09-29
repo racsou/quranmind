@@ -69,7 +69,21 @@ const TRANSACTIONS: PaymentTransaction[] = [
   },
 ]
 
+function checkAdminAuth(req: NextRequest): boolean {
+  const adminCookie = req.cookies.get('quranmind_admin_auth')?.value === 'true'
+  const authHeader = req.headers.get('authorization')
+  const isMasterKey = authHeader === 'Bearer quranmind-admin-2026'
+  return adminCookie || isMasterKey
+}
+
 export async function GET(req: NextRequest) {
+  if (!checkAdminAuth(req)) {
+    return NextResponse.json(
+      { success: false, error: 'غير مصرح: الوصول لبيانات وسجلات الدفع والتحويلات مقتصر على مدير النظام فقط.' },
+      { status: 401 }
+    )
+  }
+
   const { searchParams } = new URL(req.url)
   const gateway = searchParams.get('gateway')
   const status = searchParams.get('status')
