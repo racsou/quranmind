@@ -56,6 +56,7 @@ import { AudioReciter } from '@/components/audio-reciter'
 import { FullMushafViewer } from '@/components/full-mushaf-viewer'
 import { AdminDashboardView } from '@/components/admin-dashboard-view'
 import { UserSettingsView } from '@/components/user-settings-view'
+import { AgentChatView } from '@/components/agent-chat-view'
 import {
   HADITH_CORPUS,
   classifyHadithBreadth,
@@ -443,10 +444,10 @@ export function DashboardTabView({ tab }: TabViewProps) {
                       <Download className="w-3 h-3" /> تصدير الملف
                     </button>
                     <Link
-                      href="/workspace"
+                      href="/dashboard/analysis"
                       className="text-cyan-400 hover:underline flex items-center gap-1 text-[11px]"
                     >
-                      مساحة العمل <ArrowLeft className="w-3 h-3" />
+                      مختبر التحليل <ArrowLeft className="w-3 h-3" />
                     </Link>
                   </div>
                 </div>
@@ -1482,13 +1483,19 @@ export function DashboardTabView({ tab }: TabViewProps) {
       }
 
       // ----------------------------------------------------
-      // 9. ADMIN DASHBOARD TAB
+      // 9. AI RESEARCH AGENT STUDIO TAB
+      // ----------------------------------------------------
+      case 'assistant':
+        return <AgentChatView />
+
+      // ----------------------------------------------------
+      // 10. ADMIN DASHBOARD TAB
       // ----------------------------------------------------
       case 'admin':
         return <AdminDashboardView />
 
       // ----------------------------------------------------
-      // 10. USER SETTINGS TAB
+      // 11. USER SETTINGS TAB
       // ----------------------------------------------------
       case 'settings':
         return <UserSettingsView />
@@ -1524,10 +1531,10 @@ export function DashboardTabView({ tab }: TabViewProps) {
 
             <div className="pt-3 border-t border-slate-800 flex justify-end">
               <Link
-                href="/workspace"
+                href="/dashboard/analysis"
                 className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2"
               >
-                الدخول إلى مساحة العمل المتصلة <ArrowLeft className="w-4 h-4" />
+                الدخول إلى استوديو التحليل المباشر <ArrowLeft className="w-4 h-4" />
               </Link>
             </div>
           </div>

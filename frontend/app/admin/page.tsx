@@ -21,14 +21,11 @@ export default function AdminPage() {
   const [authorized, setAuthorized] = useState<boolean | null>(null)
 
   useEffect(() => {
-    // Check admin authentication
+    // Check real admin authentication credentials
     const hasAuthCookie = typeof document !== 'undefined' && document.cookie.includes('quranmind_admin_auth=true')
     const hasStorage = typeof window !== 'undefined' && localStorage.getItem('qm_admin_authenticated') === 'true'
-    
-    // In dev mode with ?preview=true or standard admin auth:
-    const isDevPreview = typeof window !== 'undefined' && window.location.search.includes('preview=true')
 
-    if (hasAuthCookie || hasStorage || isDevPreview) {
+    if (hasAuthCookie || hasStorage) {
       setAuthorized(true)
     } else {
       setAuthorized(false)

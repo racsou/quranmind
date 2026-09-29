@@ -15,7 +15,7 @@ export default function LoginPage() {
     <main className="auth-page" dir="rtl">
       {hasValidKey ? (
         <div className="clerk-container">
-          <SignIn routing="hash" fallbackRedirectUrl="/workspace" />
+          <SignIn routing="hash" fallbackRedirectUrl="/dashboard" />
         </div>
       ) : (
         <div className="auth-card">
@@ -36,7 +36,7 @@ export default function LoginPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault()
-              window.location.href = '/workspace'
+              window.location.href = '/dashboard'
             }}
           >
             <label>
@@ -48,7 +48,7 @@ export default function LoginPage() {
               <input type="password" defaultValue="••••••••" required />
             </label>
             <button type="submit">
-              الدخول إلى مساحة العمل <ArrowLeft className="w-4 h-4 mr-2 inline" />
+              الدخول إلى لوحة التحكم والبحث <ArrowLeft className="w-4 h-4 mr-2 inline" />
             </button>
           </form>
 

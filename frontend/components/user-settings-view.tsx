@@ -25,15 +25,30 @@ import {
   EyeOff,
   DollarSign,
   Receipt,
+  Award,
 } from 'lucide-react'
 
 export function UserSettingsView() {
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'security' | 'billing' | 'ai' | 'preferences'>('profile')
   const [savedSuccess, setSavedSuccess] = useState(false)
+  const [resetSuccess, setResetSuccess] = useState(false)
+  const [upgradeSuccess, setUpgradeSuccess] = useState<string | null>(null)
+  const [upgradeLoading, setUpgradeLoading] = useState(false)
+  const [loadingProfile, setLoadingProfile] = useState(true)
 
-  // Profile Form State
-  const [name, setName] = useState('د. رضوان أحمد')
-  const [email, setEmail] = useState('researcher@quranmind.org')
+  // Real Database User Profile State (Supabase)
+  const [userId, setUserId] = useState('')
+  const [name, setName] = useState('د. عبد الله البشير')
+  const [email, setEmail] = useState('admin@quranmind.ai')
+  const [role, setRole] = useState<'admin' | 'scholar' | 'student' | 'patron'>('scholar')
+  const [plan, setPlan] = useState<'free' | 'pro' | 'patron' | 'waqf_grant'>('pro')
+  const [gateway, setGateway] = useState<'slickpay' | 'stripe'>('slickpay')
+  const [currency, setCurrency] = useState<'DZD' | 'USD'>('DZD')
+  const [amountPaid, setAmountPaid] = useState<number>(2500)
+  const [hasPassword, setHasPassword] = useState<boolean>(true)
+  const [authProvider, setAuthProvider] = useState<string>('password')
+
+  // Profile Form Custom Fields
   const [institution, setInstitution] = useState('جامعة الجزائر - كلية أصول الدين والدراسات الإسلامية')
   const [specialization, setSpecialization] = useState('الإعجاز العددي والتناظر البنائي واللغوي في القرآن')
   const [bio, setBio] = useState('باحث في علوم القرآن ومقارنة المتون والمخطوطات المبكرة، مهتم بتوظيف الذكاء الاصطناعي في خدمة النص القرآني.')
@@ -46,7 +61,9 @@ export function UserSettingsView() {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(true)
 
   // AI Setup State
-  const [selectedModel, setSelectedModel] = useState<'gpt-4o' | 'claude-3-5' | 'deepseek-r1' | 'llama-3'>('gpt-4o')
+  const [selectedModel, setSelectedModel] = useState<
+    'gemini-2.5-flash' | 'gemini-2.5-pro' | 'gpt-4o' | 'claude-3-5' | 'deepseek-r1' | 'llama-3'
+  >('gemini-2.5-flash')
   const [customApiKey, setCustomApiKey] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
   const [temperature, setTemperature] = useState(0.2)
@@ -59,11 +76,155 @@ export function UserSettingsView() {
   const [autoPlayAudio, setAutoPlayAudio] = useState(true)
   const [emailDigest, setEmailDigest] = useState(true)
 
-  // Trigger Save Feedback
-  const handleSave = (e: React.FormEvent) => {
+  // Load real profile from Supabase and URL subtab parameter
+  React.useEffect(() => {
+    // Check url subtab parameter (e.g. /dashboard/settings?subtab=billing)
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const tabParam = urlParams.get('subtab')
+      if (tabParam && ['profile', 'security', 'billing', 'ai', 'preferences'].includes(tabParam)) {
+        setActiveSubTab(tabParam as any)
+      }
+    }
+
+    // Fetch real profile from Supabase API
+    fetch('/api/user/profile')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.user) {
+          const u = data.user
+          setUserId(u.id || '')
+          setName(u.name || '')
+          setEmail(u.email || '')
+          setRole(u.role || 'student')
+          setPlan(u.plan || 'free')
+          setGateway(u.gateway || 'slickpay')
+          setCurrency(u.currency || 'DZD')
+          setAmountPaid(u.amountPaid || 0)
+          setHasPassword(u.hasPassword ?? true)
+          setAuthProvider(u.authProvider || 'password')
+        }
+      })
+      .catch((e) => console.error('Failed to load Supabase profile:', e))
+      .finally(() => setLoadingProfile(false))
+
+    try {
+      const saved = localStorage.getItem('qm_user_settings')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.selectedModel) setSelectedModel(parsed.selectedModel)
+        if (parsed.customApiKey) setCustomApiKey(parsed.customApiKey)
+        if (parsed.temperature !== undefined) setTemperature(parsed.temperature)
+        if (parsed.scholarlyMode) setScholarlyMode(parsed.scholarlyMode)
+        if (parsed.quranScript) setQuranScript(parsed.quranScript)
+        if (parsed.defaultTafsir) setDefaultTafsir(parsed.defaultTafsir)
+      }
+    } catch {}
+  }, [])
+
+  // Trigger Save Feedback to Supabase
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // 1. Persist to real database Supabase
+    try {
+      await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: userId,
+          email: email,
+          name: name,
+        }),
+      })
+    } catch (e) {
+      console.warn('Supabase update warning:', e)
+    }
+
+    // 2. Persist local preferences
+    try {
+      localStorage.setItem(
+        'qm_user_settings',
+        JSON.stringify({
+          selectedModel,
+          customApiKey,
+          temperature,
+          scholarlyMode,
+          quranScript,
+          defaultTafsir,
+        })
+      )
+    } catch {}
     setSavedSuccess(true)
     setTimeout(() => setSavedSuccess(false), 3000)
+  }
+
+  // Real plan upgrade handler
+  const handleUpgradePlan = async (
+    newPlan: 'pro' | 'patron',
+    newGateway: 'slickpay' | 'stripe',
+    newCurrency: 'DZD' | 'USD',
+    amount: number
+  ) => {
+    setUpgradeLoading(true)
+    setUpgradeSuccess(null)
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: userId,
+          email: email,
+          plan: newPlan,
+          role: newPlan === 'patron' ? 'patron' : 'scholar',
+          gateway: newGateway,
+          currency: newCurrency,
+          amountPaid: amount,
+        }),
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setPlan(newPlan)
+        setRole(newPlan === 'patron' ? 'patron' : 'scholar')
+        setGateway(newGateway)
+        setCurrency(newCurrency)
+        setAmountPaid(amount)
+        setUpgradeSuccess(
+          `تمت ترقية الحساب بنجاح إلى ${
+            newPlan === 'patron' ? 'باقة الوقف الرقمي (Patron)' : 'باقة المحقق الأكاديمي (Pro)'
+          }! أصبح الوكيل الذكي ومختبر التناظر متاحين الآن.`
+        )
+      } else {
+        alert('تعذر إكمال الترقية: ' + (data.error || 'خطأ غير متوقع'))
+      }
+    } catch (err: any) {
+      alert('خطأ في الاتصال بالخادم: ' + err.message)
+    } finally {
+      setUpgradeLoading(false)
+    }
+  }
+
+  // Reset All to Defaults
+  const handleResetAllDefaults = () => {
+    setSelectedModel('gemini-2.5-flash')
+    setCustomApiKey('')
+    setTemperature(0.2)
+    setScholarlyMode('scientific-symmetry')
+    setQuranScript('uthmani-hafs')
+    setDefaultTafsir('ibn-kathir')
+    setThemeMode('dark-cyan')
+    setAutoPlayAudio(true)
+    setEmailDigest(true)
+    setTwoFactorEnabled(true)
+    try {
+      localStorage.removeItem('qm_user_settings')
+      localStorage.removeItem('qm_preferred_model')
+      localStorage.removeItem('qm_gemini_api_key')
+      localStorage.removeItem('qm_custom_api_key')
+    } catch {}
+    setResetSuccess(true)
+    setTimeout(() => setResetSuccess(false), 3000)
   }
 
   return (
@@ -72,27 +233,82 @@ export function UserSettingsView() {
       <div className="p-5 bg-[#03172b] border border-cyan-900/50 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-xl">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-700 p-0.5 shadow-lg shadow-cyan-500/20">
-            <div className="w-full h-full bg-[#031527] rounded-2xl flex items-center justify-center text-xl font-bold text-cyan-300">
-              ر.أ
+            <div className="w-full h-full bg-[#031527] rounded-2xl flex items-center justify-center text-lg font-bold text-cyan-300">
+              {name
+                .split(' ')
+                .map((n) => n[0])
+                .slice(0, 2)
+                .join('.')}
             </div>
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-lg font-bold text-white">{name}</h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-cyan-950 border border-cyan-700 text-cyan-300 font-semibold">
-                باحث أكاديمي موثق (Scholar)
+              <span
+                className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                  role === 'admin'
+                    ? 'bg-red-950 border-red-700 text-red-300'
+                    : role === 'scholar'
+                    ? 'bg-cyan-950 border-cyan-700 text-cyan-300'
+                    : role === 'patron'
+                    ? 'bg-amber-950 border-amber-700 text-amber-300'
+                    : 'bg-emerald-950 border-emerald-700 text-emerald-300'
+                }`}
+              >
+                {role === 'admin'
+                  ? 'مدير النظام (Admin)'
+                  : role === 'scholar'
+                  ? 'باحث أكاديمي (Scholar)'
+                  : role === 'patron'
+                  ? 'شريك وقفي (Patron)'
+                  : 'طالب علم ومستكشف (Student)'}
+              </span>
+
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                  plan === 'free'
+                    ? 'bg-slate-900 border-slate-700 text-slate-400'
+                    : 'bg-emerald-950/80 border-emerald-600/80 text-emerald-300'
+                }`}
+              >
+                {plan === 'free'
+                  ? 'الخطة: مجاني (تصفح واستماع)'
+                  : plan === 'pro'
+                  ? 'الخطة: المحقق الأكاديمي (Pro)'
+                  : plan === 'patron'
+                  ? 'الخطة: الوقف الرقمي (Patron)'
+                  : 'منحة وقفية (Waqf Grant)'}
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">{email} · {institution}</p>
+            <p className="text-xs text-slate-400 mt-1">{email} · {institution}</p>
           </div>
         </div>
 
-        {savedSuccess && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-950/80 border border-emerald-700/80 rounded-lg text-emerald-300 text-xs animate-fade-in">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>تم حفظ التغييرات بنجاح</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {savedSuccess && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-950/80 border border-emerald-700/80 rounded-lg text-emerald-300 text-xs animate-fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>تم حفظ التغييرات بنجاح</span>
+            </div>
+          )}
+
+          {resetSuccess && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-cyan-950/80 border border-cyan-700/80 rounded-lg text-cyan-300 text-xs animate-fade-in">
+              <CheckCircle2 className="w-4 h-4 text-cyan-400" />
+              <span>تمت استعادة كافة الإعدادات بنجاح</span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleResetAllDefaults}
+            className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition"
+            title="استعادة كافة الخيارات الافتراضية للذكاء الاصطناعي والتفضيلات"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
+            <span>استعادة الافتراضيات</span>
+          </button>
+        </div>
       </div>
 
       {/* Sub-Tabs Navigation */}
@@ -327,37 +543,161 @@ export function UserSettingsView() {
       {/* ======================================================== */}
       {activeSubTab === 'billing' && (
         <div className="space-y-5">
+          {upgradeSuccess && (
+            <div className="p-4 bg-emerald-950/80 border border-emerald-600/80 rounded-2xl text-emerald-200 text-xs flex items-center gap-3 animate-fade-in shadow-xl">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              <div className="flex-1 font-semibold">{upgradeSuccess}</div>
+            </div>
+          )}
+
           {/* Current Active Plan Card */}
           <div className="p-6 bg-gradient-to-r from-[#04203a] to-[#031527] border border-cyan-600/40 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4">
-            <div className="space-y-1">
+            <div className="space-y-1.5 max-w-xl">
               <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider">الخطة النشطة الحالية</span>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <span>اشتراك الباحث الأكاديمي (Pro Scholar)</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-950 border border-emerald-700 text-emerald-300">
-                  نشط ومجدد تلقائياً
+                <span>
+                  {plan === 'free'
+                    ? 'حساب طالب علم / مستكشف (مجاني)'
+                    : plan === 'pro'
+                    ? 'اشتراك الباحث والمحقق الأكاديمي (Pro Scholar)'
+                    : plan === 'patron'
+                    ? 'شريك الوقف الرقمي العالمي (Patron)'
+                    : 'منحة وقفية (Waqf Grant)'}
+                </span>
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                    plan === 'free'
+                      ? 'bg-slate-900 border-slate-700 text-slate-400'
+                      : 'bg-emerald-950 border-emerald-700 text-emerald-300'
+                  }`}
+                >
+                  {plan === 'free' ? 'حساب استكشافي' : 'نشط ومجدد تلقائياً ✓'}
                 </span>
               </h2>
               <p className="text-xs text-slate-300">
-                رسوم الاشتراك: <strong className="text-cyan-300">2,500 د.ج / شهرياً</strong> عبر بوابة SATIM / SlickPay (أو $19/mo عبر Stripe).
+                {plan === 'free'
+                  ? 'يتيح لك حسابك تصفح المصحف الشريف بالرسم العثماني، الاستماع لتلاوات كبار القراء، وقراءة التفسير مجاناً. لاستخدام الوكيل الذكي (Google Gemini) ومختبر التناظر، يرجى تفعيل باقة المحقق أدناه.'
+                  : `رسوم الاشتراك: ${
+                      currency === 'DZD' ? `${amountPaid} د.ج / شهرياً` : `$${amountPaid} / شهرياً`
+                    } عبر بوابة ${gateway === 'slickpay' ? 'SATIM / SlickPay' : 'Stripe'}.`}
               </p>
-              <p className="text-[11px] text-slate-400">تاريخ التجديد القادم: 24 أكتوبر 2026</p>
+              {plan !== 'free' && (
+                <p className="text-[11px] text-slate-400">تاريخ التجديد القادم: 24 أكتوبر 2026</p>
+              )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-bold shadow-md shadow-cyan-600/30 transition"
-              >
-                ترقية إلى الوقف الرقمي (Patron)
-              </button>
-              <button
-                type="button"
-                className="px-3 py-2 bg-[#062444] hover:bg-[#09355f] border border-cyan-800/60 text-slate-300 rounded-lg text-xs transition"
-              >
-                إدارة وسيلة الدفع
-              </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {plan === 'free' ? (
+                <button
+                  type="button"
+                  onClick={() => handleUpgradePlan('pro', 'slickpay', 'DZD', 2500)}
+                  disabled={upgradeLoading}
+                  className="px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-cyan-600/30 transition flex items-center gap-2"
+                >
+                  {upgradeLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  <span>ترقية إلى المحقق (2,500 د.ج)</span>
+                </button>
+              ) : plan === 'pro' ? (
+                <button
+                  type="button"
+                  onClick={() => handleUpgradePlan('patron', 'slickpay', 'DZD', 5000)}
+                  disabled={upgradeLoading}
+                  className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-bold rounded-lg text-xs shadow-md transition flex items-center gap-1.5"
+                >
+                  <Award className="w-3.5 h-3.5" />
+                  <span>ترقية إلى الوقف الرقمي (Patron)</span>
+                </button>
+              ) : null}
             </div>
           </div>
+
+          {/* If Free Plan: Display Plan Selection Cards explicitly */}
+          {plan === 'free' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Pro Plan Card */}
+              <div className="p-5 bg-[#031a30] border border-cyan-500/60 rounded-2xl space-y-3 relative overflow-hidden shadow-xl">
+                <span className="absolute top-2 left-2 text-[10px] bg-cyan-600 text-white px-2.5 py-0.5 rounded-full font-bold">
+                  موصى به للباحثين
+                </span>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-cyan-400" /> باقة المحقق الأكاديمي (Pro Scholar)
+                  </h3>
+                  <div className="text-lg font-black text-cyan-300">
+                    2,500 د.ج <span className="text-xs font-normal text-slate-400">/ شهرياً (أو $19 عبر Stripe)</span>
+                  </div>
+                </div>
+                <ul className="text-xs space-y-1.5 text-slate-300">
+                  <li className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-cyan-400" /> استخدام غير محدود للوكيل الذكي (Google Gemini 2.5 Flash / Pro)
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-cyan-400" /> مختبر التناظر اللغوي وحساب الجُمّل القطعي
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-cyan-400" /> استوديو أسانيد الحديث وعلم المصطلح المقارن
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-cyan-400" /> تصدير ملفات ودوسيهات الأبحاث الأكاديمية (PDF/Markdown)
+                  </li>
+                </ul>
+                <div className="pt-2 flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    disabled={upgradeLoading}
+                    onClick={() => handleUpgradePlan('pro', 'slickpay', 'DZD', 2500)}
+                    className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5"
+                  >
+                    <CreditCard className="w-3.5 h-3.5" />
+                    <span>بالبطاقة الذهبية / CIB (2,500 د.ج)</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={upgradeLoading}
+                    onClick={() => handleUpgradePlan('pro', 'stripe', 'USD', 19)}
+                    className="py-2 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5"
+                  >
+                    <DollarSign className="w-3.5 h-3.5" />
+                    <span>Visa / Stripe ($19)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Patron Plan Card */}
+              <div className="p-5 bg-[#03172b] border border-amber-600/40 rounded-2xl space-y-3 shadow-xl">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Award className="w-4 h-4 text-amber-400" /> باقة الوقف والراعي الرقمي (Patron)
+                  </h3>
+                  <div className="text-lg font-black text-amber-300">
+                    5,000 د.ج <span className="text-xs font-normal text-slate-400">/ شهرياً (أو $49 عبر Stripe)</span>
+                  </div>
+                </div>
+                <ul className="text-xs space-y-1.5 text-slate-300">
+                  <li className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-amber-400" /> كافة ميزات باقة المحقق الأكاديمي
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-amber-400" /> كفالة اشتراكات لطلبة العلم والباحثين المستحقين
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 text-amber-400" /> خوادم مخصصة وأولوية قصوى لمعالجة استفسارات الذكاء الاصطناعي
+                  </li>
+                </ul>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    disabled={upgradeLoading}
+                    onClick={() => handleUpgradePlan('patron', 'slickpay', 'DZD', 5000)}
+                    className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-lg text-xs transition flex items-center justify-center gap-1.5"
+                  >
+                    <Award className="w-3.5 h-3.5" />
+                    <span>الترقية إلى الوقف الرقمي (5,000 د.ج / $49)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Payment Gateways Overview */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -479,8 +819,10 @@ export function UserSettingsView() {
           {/* Model Selection Grid */}
           <div className="space-y-2">
             <label className="block text-xs font-semibold text-slate-300">نموذج الاستدلال الافتراضي</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
               {[
+                { id: 'gemini-2.5-flash', title: 'Google Gemini 2.5 Flash', badge: 'فائق السرعة (موصى به)', desc: 'استجابة فائقة السرعة وفهم عميق للغة العربية والنصوص القرآنية' },
+                { id: 'gemini-2.5-pro', title: 'Google Gemini 2.5 Pro', badge: 'تفكير واستدلال عميق', desc: 'أعلى دقة في التحليل الإبستيمي والتركيب المعقد والفرضيات العلمية' },
                 { id: 'gpt-4o', title: 'OpenAI GPT-4o', badge: 'متوازن وشامل', desc: 'الأفضل في استيعاب التناظر والبناء الهيكلي للآيات' },
                 { id: 'claude-3-5', title: 'Claude 3.5 Sonnet', badge: 'دقة لغوية فائقة', desc: 'المثالي في الصياغة اللغوية والتفسير المقارن' },
                 { id: 'deepseek-r1', title: 'DeepSeek R1', badge: 'منطق واستدلال', desc: 'متفوق في فحص أسانيد الحديث وعلم المصطلح' },

@@ -1,2 +1,12 @@
-import Link from 'next/link'
-export default function DocsPage(){return <main className="docs-page" dir="rtl"><header><Link href="/" className="docs-brand">Quran<span>Mind</span></Link><nav><Link href="/">الرئيسية</Link><Link href="/dashboard">لوحة التحكم</Link><Link href="/login">تسجيل الدخول</Link></nav></header><div className="docs-layout"><aside><strong>التوثيق</strong><a href="#start">البداية السريعة</a><a href="#features">مزايا المنصة</a><a href="#research">منهجية البحث</a><a href="#opensource">المصدر المفتوح</a></aside><article><span className="qm-eyebrow">دليل QuranMind</span><h1>اكتشف، حلل، وتحقق</h1><p>توثيق مبسط يساعدك على استخدام أدوات QuranMind في البحث القرآني والعلمي.</p>{[['start','البداية السريعة','أنشئ حساباً تجريبياً، ثم افتح لوحة التحكم واختر المجال الذي تريد استكشافه.'],['features','مزايا المنصة','تصفح القرآن، حلل الأنماط اللغوية والعددية، واستفد من الوكيل الذكي لتنظيم الأسئلة والنتائج.'],['research','منهجية البحث','نحن نميز بوضوح بين النص القرآني، الملاحظة البحثية، والنتيجة التي تحتاج إلى تحقق مستقل.'],['opensource','المصدر المفتوح','QuranMind مشروع مفتوح المصدر. يمكنك مراجعة الكود، اقتراح التحسينات، والمساهمة في بناء أدوات بحث أكثر شفافية.']].map(([id,title,text])=><section id={id} className="qm-card" key={id}><h2>{title}</h2><p>{text}</p></section>)}</article></div></main>}
+import type { Metadata } from 'next'
+import { ApiDocsView } from '@/components/api-docs-view'
+
+export const metadata: Metadata = {
+  title: 'QuranMind REST API Documentation | توثيق الواجهة البرمجية',
+  description:
+    'Comprehensive API reference, interactive explorer, and SDK guides for Quran, Hadith, Narrators, Isnad graphs, and Classical Books.',
+}
+
+export default function DocsPage() {
+  return <ApiDocsView />
+}

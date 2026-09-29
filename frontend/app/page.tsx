@@ -91,7 +91,7 @@ export default function HomePage() {
             <Link href="#testimonials" className="hover:text-cyan-300 transition">
               آراء المحققين
             </Link>
-            <Link href="/dashboard/quran?preview=true" className="hover:text-cyan-300 transition">
+            <Link href="/dashboard/quran" className="hover:text-cyan-300 transition">
               المصحف (114 سورة)
             </Link>
           </nav>
@@ -105,7 +105,7 @@ export default function HomePage() {
               تسجيل الدخول
             </Link>
             <Link
-              href="/workspace?preview=true"
+              href="/dashboard"
               className="text-xs font-bold text-white bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 px-4 py-2.5 rounded-xl shadow-lg shadow-cyan-900/40 border border-cyan-400/30 flex items-center gap-1.5 transition active:scale-95"
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -138,14 +138,14 @@ export default function HomePage() {
             <Link href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:text-cyan-300">
               الخطط والوقف
             </Link>
-            <Link href="/dashboard/quran?preview=true" onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:text-cyan-300">
+            <Link href="/dashboard/quran" onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:text-cyan-300">
               المصحف الشريف
             </Link>
             <div className="pt-2 border-t border-slate-800 flex gap-2">
               <Link href="/login" className="flex-1 text-center py-2 bg-slate-800 rounded-lg">
                 تسجيل الدخول
               </Link>
-              <Link href="/workspace?preview=true" className="flex-1 text-center py-2 bg-cyan-600 font-bold rounded-lg text-white">
+              <Link href="/dashboard" className="flex-1 text-center py-2 bg-cyan-600 font-bold rounded-lg text-white">
                 ابدأ البحث
               </Link>
             </div>
@@ -186,7 +186,7 @@ export default function HomePage() {
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <Link
-                href="/workspace?preview=true"
+                href="/dashboard"
                 className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-sm shadow-xl shadow-cyan-500/25 flex items-center justify-center gap-2 transition hover:-translate-y-0.5 active:scale-95"
               >
                 <span>الدخول إلى مساحة العمل مجاناً</span>
@@ -194,7 +194,7 @@ export default function HomePage() {
               </Link>
 
               <Link
-                href="/dashboard/quran?preview=true"
+                href="/dashboard/quran"
                 className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700/80 font-semibold text-sm flex items-center justify-center gap-2 transition hover:-translate-y-0.5"
               >
                 <BookOpen className="w-4 h-4 text-cyan-400" />
@@ -227,10 +227,10 @@ export default function HomePage() {
                     <span className="w-3 h-3 rounded-full bg-amber-500/80" />
                     <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
                   </div>
-                  <span className="text-[11px] font-mono text-slate-400 mr-2">quranmind.ai/workspace</span>
+                  <span className="text-[11px] font-mono text-slate-400 mr-2">quranmind.ai/dashboard</span>
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-cyan-400 font-semibold">
-                  <Sparkles className="w-3 h-3" /> مساحة العمل الثلاثية المتزامنة
+                  <Sparkles className="w-3 h-3" /> لوحة التحكم والبحث المتكاملة
                 </div>
               </div>
 
@@ -300,7 +300,7 @@ export default function HomePage() {
                   </div>
 
                   <Link
-                    href="/workspace?preview=true"
+                    href="/dashboard"
                     className="block text-center py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-lg text-[11px] transition"
                   >
                     فتح التجربة التفاعلية الكاملة ←
@@ -525,7 +525,7 @@ export default function HomePage() {
 
                     <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
                       <span>مصنف تحت: توافق علمي مدعوم بالأدلة</span>
-                      <Link href="/workspace?preview=true" className="text-cyan-400 font-bold hover:underline">
+                      <Link href="/dashboard" className="text-cyan-400 font-bold hover:underline">
                         جرب السؤال في مساحة العمل ←
                       </Link>
                     </div>
@@ -559,7 +559,7 @@ export default function HomePage() {
                     </div>
 
                     <Link
-                      href="/workspace?preview=true"
+                      href="/dashboard"
                       className="block text-center py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl text-xs transition"
                     >
                       استكشف شبكة العلاقات الحية ←
@@ -595,7 +595,7 @@ export default function HomePage() {
                     </p>
 
                     <Link
-                      href="/dashboard/library?preview=true"
+                      href="/dashboard/library"
                       className="block text-center py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl text-xs transition"
                     >
                       فتح متحف المخطوطات بالمجهر الرقمي ←
@@ -663,7 +663,7 @@ export default function HomePage() {
 
               <div className="pt-2">
                 <Link
-                  href="/workspace?preview=true"
+                  href="/dashboard"
                   className="inline-flex items-center gap-2 text-xs font-bold text-cyan-400 hover:text-cyan-300 hover:underline"
                 >
                   <span>جرب المنصة الآن دون أي تسجيل</span>
@@ -835,7 +835,7 @@ export default function HomePage() {
               </div>
 
               <Link
-                href="/workspace?preview=true"
+                href="/dashboard"
                 className="w-full py-3 text-center bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition"
               >
                 ابدأ البحث مجاناً
@@ -892,7 +892,7 @@ export default function HomePage() {
               </div>
 
               <Link
-                href="/workspace?preview=true"
+                href="/dashboard"
                 className="w-full py-3.5 text-center bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black rounded-xl text-xs shadow-lg shadow-cyan-500/25 transition active:scale-95"
               >
                 اشترك وادعم البحث العلمي
@@ -941,7 +941,7 @@ export default function HomePage() {
               </div>
 
               <Link
-                href="/workspace?preview=true"
+                href="/dashboard"
                 className="w-full py-3 text-center bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-xl text-xs transition"
               >
                 ساهم في الوقف القرآني الرقمي
@@ -1071,14 +1071,14 @@ export default function HomePage() {
 
             <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
-                href="/workspace?preview=true"
+                href="/dashboard"
                 className="w-full sm:w-auto px-8 py-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-sm shadow-xl shadow-cyan-500/30 flex items-center justify-center gap-2 transition hover:-translate-y-0.5 active:scale-95"
               >
                 <span>ادخل إلى مساحة العمل مجاناً الآن</span>
                 <ArrowLeft className="w-4 h-4" />
               </Link>
               <Link
-                href="/dashboard/quran?preview=true"
+                href="/dashboard/quran"
                 className="w-full sm:w-auto px-6 py-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 font-bold text-sm transition"
               >
                 تصفح السور الـ 114
@@ -1122,11 +1122,11 @@ export default function HomePage() {
             <div className="space-y-3">
               <strong className="text-white block text-xs font-bold">المنصة والأدوات</strong>
               <ul className="space-y-2">
-                <li><Link href="/workspace?preview=true" className="hover:text-cyan-300 transition">مساحة العمل الثلاثية</Link></li>
-                <li><Link href="/dashboard/quran?preview=true" className="hover:text-cyan-300 transition">المصحف الشريف (114 سورة)</Link></li>
-                <li><Link href="/dashboard/analysis?preview=true" className="hover:text-cyan-300 transition">مختبر التناظر وحساب الجمل</Link></li>
-                <li><Link href="/dashboard/library?preview=true" className="hover:text-cyan-300 transition">متحف المخطوطات والحديث</Link></li>
-                <li><Link href="/dashboard/statistics?preview=true" className="hover:text-cyan-300 transition">إحصاءات القرآن الشاملة</Link></li>
+                <li><Link href="/dashboard" className="hover:text-cyan-300 transition">مساحة العمل الثلاثية</Link></li>
+                <li><Link href="/dashboard/quran" className="hover:text-cyan-300 transition">المصحف الشريف (114 سورة)</Link></li>
+                <li><Link href="/dashboard/analysis" className="hover:text-cyan-300 transition">مختبر التناظر وحساب الجمل</Link></li>
+                <li><Link href="/dashboard/library" className="hover:text-cyan-300 transition">متحف المخطوطات والحديث</Link></li>
+                <li><Link href="/dashboard/statistics" className="hover:text-cyan-300 transition">إحصاءات القرآن الشاملة</Link></li>
               </ul>
             </div>
 
@@ -1134,10 +1134,10 @@ export default function HomePage() {
             <div className="space-y-3">
               <strong className="text-white block text-xs font-bold">المصادر والأرشيف</strong>
               <ul className="space-y-2">
-                <li><Link href="/dashboard/library?preview=true" className="hover:text-cyan-300 transition">رقعة برمنغهام (568–645م)</Link></li>
-                <li><Link href="/dashboard/library?preview=true" className="hover:text-cyan-300 transition">رق صنعاء (578–669م)</Link></li>
-                <li><Link href="/dashboard/library?preview=true" className="hover:text-cyan-300 transition">تفسير ابن كثير والجلالين</Link></li>
-                <li><Link href="/dashboard/library?preview=true" className="hover:text-cyan-300 transition">شواهد الصحيحين المسندة</Link></li>
+                <li><Link href="/dashboard/library" className="hover:text-cyan-300 transition">رقعة برمنغهام (568–645م)</Link></li>
+                <li><Link href="/dashboard/library" className="hover:text-cyan-300 transition">رق صنعاء (578–669م)</Link></li>
+                <li><Link href="/dashboard/library" className="hover:text-cyan-300 transition">تفسير ابن كثير والجلالين</Link></li>
+                <li><Link href="/dashboard/library" className="hover:text-cyan-300 transition">شواهد الصحيحين المسندة</Link></li>
                 <li><Link href="#rigor" className="hover:text-cyan-300 transition">ميثاق الأمانة الإبستيمية</Link></li>
               </ul>
             </div>

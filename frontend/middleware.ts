@@ -1,7 +1,7 @@
 import { clerkMiddleware } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
-const protectedPrefixes = ['/workspace', '/dashboard', '/api/projects', '/api/evidence']
+const protectedPrefixes = ['/dashboard', '/api/projects', '/api/evidence']
 
 const hasClerkKeys = Boolean(
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
@@ -9,15 +9,26 @@ const hasClerkKeys = Boolean(
 )
 
 export default clerkMiddleware(async (auth, req) => {
+  const path = req.nextUrl.pathname
+
+  if (path === '/workspace' || path.startsWith('/workspace/')) {
+    return NextResponse.redirect(new URL('/dashboard', req.url))
+  }
+
+  // Protected Admin Routes: /admin and /admin/* (except /admin/login)
+  if (path === '/admin' || (path.startsWith('/admin/') && path !== '/admin/login')) {
+    const hasAdminCookie = req.cookies.get('quranmind_admin_auth')?.value === 'true'
+    if (!hasAdminCookie) {
+      return NextResponse.redirect(new URL('/admin/login', req.url))
+    }
+  }
+
   if (!hasClerkKeys) {
     return NextResponse.next()
   }
 
-  const path = req.nextUrl.pathname
   const isProtected = protectedPrefixes.some((prefix) => path.startsWith(prefix))
-  const isPreview = req.nextUrl.searchParams.get('preview') === 'true' || req.cookies.get('qm_preview')?.value === 'true'
-
-  if (isProtected && !isPreview) {
+  if (isProtected) {
     await auth.protect()
   }
 })

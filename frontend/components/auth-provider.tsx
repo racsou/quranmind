@@ -1,7 +1,7 @@
 'use client'
 
-import React from 'react'
-import { ClerkProvider } from '@clerk/nextjs'
+import React, { useEffect } from 'react'
+import { ClerkProvider, useUser } from '@clerk/nextjs'
 
 const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 
@@ -10,6 +10,27 @@ const hasValidKey = Boolean(
     publishableKey.startsWith('pk_') &&
     !publishableKey.includes('placeholder')
 )
+
+function ClerkSupabaseSync() {
+  const { isSignedIn, user } = useUser()
+
+  useEffect(() => {
+    if (isSignedIn && user) {
+      const savedRole =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('qm_signup_role') || 'student'
+          : 'student'
+
+      fetch('/api/auth/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: savedRole }),
+      }).catch((e) => console.warn('Clerk to Supabase sync warning:', e))
+    }
+  }, [isSignedIn, user])
+
+  return null
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   if (!hasValidKey) {
@@ -52,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       }}
     >
+      <ClerkSupabaseSync />
       {children}
     </ClerkProvider>
   )

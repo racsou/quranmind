@@ -10,7 +10,7 @@ export interface PaymentTransaction {
   amount: number
   currency: 'DZD' | 'USD'
   status: 'completed' | 'pending' | 'failed'
-  plan: 'pro' | 'patron' | 'waqf_grant'
+  plan: 'free' | 'pro' | 'patron' | 'waqf_grant'
   date: string
 }
 

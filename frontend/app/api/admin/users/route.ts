@@ -17,6 +17,12 @@ export interface ManagedUser {
   joinedAt: string
   apiRequests: number
   projectsCount: number
+  hasPassword: boolean
+  authProvider: 'password' | 'google' | 'apple' | 'github' | 'clerk'
+  lastActive: string
+  lastPasswordReset?: string | null
+  storageUsedMb: number
+  quotaLimit: number
 }
 
 // In-memory / Mock User Database
@@ -34,6 +40,12 @@ let USERS_DATABASE: ManagedUser[] = [
     joinedAt: '2026-01-10',
     apiRequests: 1420,
     projectsCount: 18,
+    hasPassword: true,
+    authProvider: 'password',
+    lastActive: 'الآن',
+    lastPasswordReset: '2026-06-01',
+    storageUsedMb: 120,
+    quotaLimit: 10000,
   },
   {
     id: 'usr-scholar-2',
@@ -48,6 +60,12 @@ let USERS_DATABASE: ManagedUser[] = [
     joinedAt: '2026-03-15',
     apiRequests: 890,
     projectsCount: 6,
+    hasPassword: true,
+    authProvider: 'password',
+    lastActive: 'منذ 15 دقيقة',
+    lastPasswordReset: null,
+    storageUsedMb: 45,
+    quotaLimit: 5000,
   },
   {
     id: 'usr-scholar-3',
@@ -62,6 +80,12 @@ let USERS_DATABASE: ManagedUser[] = [
     joinedAt: '2026-04-02',
     apiRequests: 540,
     projectsCount: 4,
+    hasPassword: false, // Signed up via Google OAuth
+    authProvider: 'google',
+    lastActive: 'منذ ساعتين',
+    lastPasswordReset: null,
+    storageUsedMb: 30,
+    quotaLimit: 5000,
   },
   {
     id: 'usr-patron-4',
@@ -76,6 +100,12 @@ let USERS_DATABASE: ManagedUser[] = [
     joinedAt: '2026-02-18',
     apiRequests: 3200,
     projectsCount: 12,
+    hasPassword: false, // Signed up via Clerk SSO
+    authProvider: 'clerk',
+    lastActive: 'منذ يوم',
+    lastPasswordReset: null,
+    storageUsedMb: 210,
+    quotaLimit: 20000,
   },
   {
     id: 'usr-student-5',
@@ -90,6 +120,12 @@ let USERS_DATABASE: ManagedUser[] = [
     joinedAt: '2026-05-11',
     apiRequests: 210,
     projectsCount: 2,
+    hasPassword: true,
+    authProvider: 'password',
+    lastActive: 'منذ 3 ساعات',
+    lastPasswordReset: null,
+    storageUsedMb: 12,
+    quotaLimit: 1000,
   },
   {
     id: 'usr-student-6',
@@ -104,6 +140,12 @@ let USERS_DATABASE: ManagedUser[] = [
     joinedAt: '2026-06-01',
     apiRequests: 145,
     projectsCount: 1,
+    hasPassword: false, // Signed up via Google OAuth
+    authProvider: 'google',
+    lastActive: 'منذ 5 أيام',
+    lastPasswordReset: null,
+    storageUsedMb: 8,
+    quotaLimit: 1000,
   },
 ]
 
@@ -138,6 +180,18 @@ export async function GET(req: NextRequest) {
           joinedAt: u.joined_at?.split('T')[0] || '2026-01-01',
           apiRequests: u.api_requests || 0,
           projectsCount: u.projects_count || 0,
+          hasPassword:
+            u.has_password !== undefined && u.has_password !== null
+              ? Boolean(u.has_password)
+              : u.auth_provider === 'google' || u.auth_provider === 'oauth' || u.email?.includes('gmail')
+              ? false
+              : true,
+          authProvider:
+            u.auth_provider || (u.email?.includes('gmail') ? 'google' : 'password'),
+          lastActive: u.last_active || 'مؤخراً',
+          lastPasswordReset: u.last_password_reset || null,
+          storageUsedMb: u.storage_used_mb || 25,
+          quotaLimit: u.quota_limit || 5000,
         }))
 
         const summary = {
@@ -201,53 +255,85 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json()
-    const { userId, role, status, plan } = body
+    const { userId, role, status, plan, gateway, currency, amountPaid, action, newPassword } = body
+
+    const userIndex = USERS_DATABASE.findIndex((u) => u.id === userId)
+    if (userIndex === -1) {
+      return NextResponse.json({ success: false, error: 'المستخدم غير موجود' }, { status: 404 })
+    }
+
+    const targetUser = USERS_DATABASE[userIndex]
+
+    // Action 1: Manual Password Reset
+    if (action === 'reset_password') {
+      if (!targetUser.hasPassword) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'لا يمكن إعادة تعيين كلمة المرور لهذا المستخدم لأنه سجل عبر موفر خارجي (OAuth) بدون كلمة مرور.',
+          },
+          { status: 400 }
+        )
+      }
+
+      const generatedPassword = newPassword && newPassword.trim() ? newPassword.trim() : `QM-${Math.random().toString(36).substring(2, 10).toUpperCase()}!`
+      targetUser.lastPasswordReset = new Date().toISOString().split('T')[0]
+
+      return NextResponse.json({
+        success: true,
+        action: 'reset_password',
+        message: `تم إعادة تعيين كلمة المرور للمستخدم (${targetUser.name}) بنجاح.`,
+        newPassword: generatedPassword,
+        user: targetUser,
+      })
+    }
+
+    // Action 2: Reset API Quota
+    if (action === 'reset_quota') {
+      targetUser.apiRequests = 0
+      return NextResponse.json({
+        success: true,
+        action: 'reset_quota',
+        message: `تم تصفير عداد استهلاك الـ API للمستخدم (${targetUser.name}) بنجاح.`,
+        user: targetUser,
+      })
+    }
+
+    // Action 3: Manage Subscription & Payments
+    if (action === 'update_plan' || plan) {
+      if (plan) targetUser.plan = plan
+      if (gateway) targetUser.gateway = gateway
+      if (currency) targetUser.currency = currency
+      if (amountPaid !== undefined) targetUser.amountPaid = Number(amountPaid)
+      if (plan === 'pro') targetUser.role = 'scholar'
+      if (plan === 'patron') targetUser.role = 'patron'
+    }
+
+    // Direct Updates
+    if (role) targetUser.role = role
+    if (status) targetUser.status = status
 
     if (isSupabaseConfigured) {
       try {
         const supabase = getServiceSupabase()
-        const updates: Record<string, any> = { updated_at: new Date().toISOString() }
-        if (role) updates.role = role
-        if (status) updates.status = status
-        if (plan) updates.plan = plan
-
-        const { data, error } = await supabase
-          .from('users')
-          .update(updates)
-          .eq('id', userId)
-          .select()
-          .single()
-
-        if (!error && data) {
-          return NextResponse.json({
-            success: true,
-            source: 'supabase',
-            message: 'تم تحديث بيانات المستخدم وصلاحياته بنجاح في Supabase',
-            user: data,
-          })
+        const updates: Record<string, any> = {
+          updated_at: new Date().toISOString(),
+          role: targetUser.role,
+          status: targetUser.status,
+          plan: targetUser.plan,
         }
+        await supabase.from('users').update(updates).eq('id', userId)
       } catch (e) {
-        console.warn('Supabase update failed, falling back:', e)
+        console.warn('Supabase sync warning:', e)
       }
     }
 
-    const userIndex = USERS_DATABASE.findIndex((u) => u.id === userId)
-    if (userIndex === -1) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
-    }
-
-    if (role) USERS_DATABASE[userIndex].role = role
-    if (status) USERS_DATABASE[userIndex].status = status
-    if (plan) USERS_DATABASE[userIndex].plan = plan
-
     return NextResponse.json({
       success: true,
-      source: 'fallback',
       message: 'تم تحديث بيانات المستخدم وصلاحياته بنجاح',
-      user: USERS_DATABASE[userIndex],
+      user: targetUser,
     })
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }
-
