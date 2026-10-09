@@ -2,6 +2,14 @@
 .env*.local
 .env
 !.env.example
+frontend/.env.local
+backend/.env.local
+frontend/.env
+backend/.env
+frontend/node_modules
+backend/node_modules
+frontend/.next
+backend/.next
 
 # Dependencies & Build Outputs
 node_modules/
