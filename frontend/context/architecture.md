@@ -5,7 +5,7 @@
 | Layer          | Technology                     | Role                                                               |
 | -------------- | ------------------------------ | ------------------------------------------------------------------ |
 | Framework      | Next.js 16 + TypeScript        | Full-stack app with SSR and API routes                             |
-| UI             | Tailwind CSS + shadcn/ui       | Premium dark research interface (`#020b18`, `#00d4ff`, Cairo font) |
+| UI             | Tailwind CSS + shadcn/ui       | Eye-friendly white research interface (`#f8fafc`, `#ffffff`, `#0f172a`, Cairo font) |
 | Auth           | Clerk (`@clerk/nextjs`)        | User authentication, session management, and route protection     |
 | Database       | Neon (PostgreSQL) + Drizzle    | User research projects, hypotheses, evidence items, and bookmarks  |
 | Storage/Vector | Supabase (`@supabase/supabase`) | Storage for research exports, evidence attachments, and embeddings |
@@ -15,14 +15,20 @@
 
 ## System Boundaries
 
-- `app/` — Next.js App Router routes and layouts (`/workspace`, `/dashboard`, `/login`, `/signup`, `/docs`)
-- `app/api/` — API routes:
-  - `/api/quran/search` — Fast verse searching with Redis caching
-  - `/api/quran/analyze` — 4-mode normalization, Abjad, and symmetry calculations
-  - `/api/agent` — AI research assistant with calculation verification
-  - `/api/projects` — Research project management (Neon PostgreSQL)
-  - `/api/evidence` — Evidence collection and verification status (Neon PostgreSQL)
-- `components/` — React components (interactive 3-panel research workspace, dashboard, auth provider)
+- `app/` — Routing only: thin Next.js App Router pages and route handlers
+- `features/` — Feature-based modules ("one file = one task", max ~150 lines/file):
+  - `features/dashboard/` — Dashboard shell, sidebar, topbar, tab strip, 3-pane workspace
+  - `features/quran/` — Mushaf viewer, audio reciter, root concordance, morphology
+  - `features/hadith/` — Hadith studio, Mustalah engine, Isnad breadth classifier
+  - `features/agent/` — AI research agent chat, calculations, citations
+  - `features/graph/` — Topological research graph visualization and layout
+  - `features/projects/` — Projects management, study notes, academic dossier export
+  - `features/payments/` — SlickPay and Stripe checkout modals and gateways
+  - `features/settings/` — Profile, security, billing, sessions management
+  - `features/admin/` — Admin dashboard, user metrics, quota management
+  - `features/docs/` — API documentation and endpoint tester
+- `shared/` — Common infrastructure, reusable UI primitives, types, API helpers
+- `components/` — Thin orchestrator wrappers maintaining backward compatibility
 - `lib/` — Core infrastructure utilities:
   - `lib/db/` — Drizzle ORM schema and Neon client with development fallback
   - `lib/redis/` — Redis client connecting to Docker container with in-memory fallback
