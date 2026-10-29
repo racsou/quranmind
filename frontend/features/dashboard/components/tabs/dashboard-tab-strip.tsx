@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { Columns, LayoutGrid } from 'lucide-react'
 import { NavItem } from '../../config/dashboard-nav-items'
 import { TabItem } from './tab-item'
 import { TabAddDropdown } from './tab-add-dropdown'
@@ -10,6 +11,8 @@ interface DashboardTabStripProps {
   activeTabId: string
   addMenuOpen: boolean
   unopenedItems: NavItem[]
+  overviewMode?: 'panes' | 'overview'
+  onToggleOverviewMode?: () => void
   onSelectTab: (tabId: string, href: string) => void
   onCloseTab: (e: React.MouseEvent, tabId: string) => void
   onToggleAddMenu: () => void
@@ -21,6 +24,8 @@ export function DashboardTabStrip({
   activeTabId,
   addMenuOpen,
   unopenedItems,
+  overviewMode = 'panes',
+  onToggleOverviewMode,
   onSelectTab,
   onCloseTab,
   onToggleAddMenu,
@@ -47,6 +52,33 @@ export function DashboardTabStrip({
           onOpenNewTab={onOpenNewTab}
         />
       </div>
+
+      {activeTabId === 'overview' && onToggleOverviewMode && (
+        <div className="tab-strip-actions">
+          <button
+            type="button"
+            onClick={onToggleOverviewMode}
+            className={`tab-strip-toggle-btn ${overviewMode === 'panes' ? 'is-active' : ''}`}
+            title={
+              overviewMode === 'panes'
+                ? 'التبديل إلى بطاقات الإحصائيات'
+                : 'التبديل إلى الأعمدة الثلاثة'
+            }
+          >
+            {overviewMode === 'panes' ? (
+              <>
+                <Columns className="w-3.5 h-3.5" />
+                <span>التحليل الثلاثي</span>
+              </>
+            ) : (
+              <>
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>ملخص الأنشطة</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

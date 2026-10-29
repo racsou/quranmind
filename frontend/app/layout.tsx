@@ -1,4 +1,3 @@
-import { ClerkProvider } from '@clerk/nextjs';
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { AuthProvider } from '@/components/auth-provider'
@@ -48,10 +47,8 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased" style={{ fontFamily: "var(--font-cairo, 'Cairo', Tahoma, sans-serif)" }}>
-        <ClerkProvider>
-          <AuthProvider>{children}</AuthProvider>
-          {process.env.NODE_ENV === 'production' && <Analytics />}
-        </ClerkProvider>
+        <AuthProvider>{children}</AuthProvider>
+        {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   )

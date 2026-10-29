@@ -35,15 +35,9 @@ export function useAgentSession() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  // Paywall permanently disabled for local platform (antidev)
   useEffect(() => {
-    fetch('/api/user/profile')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.user) {
-          setIsPaywalled(data.user.plan === 'free')
-        }
-      })
-      .catch(() => {})
+    setIsPaywalled(false)
   }, [])
 
   useEffect(() => {

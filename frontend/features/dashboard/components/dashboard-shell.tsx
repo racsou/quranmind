@@ -18,9 +18,10 @@ interface DashboardShellProps {
   children?: React.ReactNode
 }
 
-export function DashboardShell({ initialTab }: DashboardShellProps) {
+export function DashboardShell({ initialTab, children }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [overviewMode, setOverviewMode] = useState<'panes' | 'overview'>('panes')
 
   const tabs = useDashboardTabs(initialTab)
   const surahLoader = useSurahLoader()
@@ -61,6 +62,8 @@ export function DashboardShell({ initialTab }: DashboardShellProps) {
           activeTabId={tabs.activeTabId}
           addMenuOpen={tabs.addMenuOpen}
           unopenedItems={tabs.unopenedItems}
+          overviewMode={overviewMode}
+          onToggleOverviewMode={() => setOverviewMode((prev) => (prev === 'panes' ? 'overview' : 'panes'))}
           onSelectTab={(tabId, href) => {
             tabs.setActiveTabId(tabId)
             window.history.pushState(null, '', href)
@@ -72,30 +75,42 @@ export function DashboardShell({ initialTab }: DashboardShellProps) {
 
         <div className="exact-content-viewport">
           {tabs.activeTabId === 'overview' ? (
-            <ThreePaneWorkspace
-              mushafSurah={surahLoader.mushafSurah}
-              currentSurahMeta={surahLoader.currentSurahMeta}
-              displayedVerses={surahLoader.displayedVerses}
-              selectedVerse={surahLoader.selectedVerse}
-              playingAyahKey={audio.playingAyahKey}
-              currentAyahIndex={surahLoader.currentAyahIndex}
-              mushafPageSize={surahLoader.mushafPageSize}
-              totalVerses={totalVerses}
-              chatHistory={agentChat.chatHistory}
-              agentMessage={agentChat.agentMessage}
-              attachedVerse={agentChat.attachedVerse}
-              isAgentTyping={agentChat.isAgentTyping}
-              onSurahChange={(s) => surahLoader.loadSurah(s, 0)}
-              onSelectVerse={(v) => surahLoader.setSelectedVerse(v)}
-              onPlayVerse={(v) => audio.handleTogglePlayAudio(v)}
-              onAttachAgent={agentChat.handleAddVerseToAgentContext}
-              onPrevPage={surahLoader.handlePrevAyahOrPage}
-              onNextPage={surahLoader.handleNextAyahOrPage}
-              onAgentMessageChange={agentChat.setAgentMessage}
-              onClearAttachedVerse={() => agentChat.setAttachedVerse(null)}
-              onSendAgentMessage={agentChat.handleSendMessage}
-              onSelectSuggestion={(s) => agentChat.setAgentMessage(s)}
-            />
+            overviewMode === 'panes' ? (
+              <ThreePaneWorkspace
+                mushafSurah={surahLoader.mushafSurah}
+                currentSurahMeta={surahLoader.currentSurahMeta}
+                displayedVerses={surahLoader.displayedVerses}
+                selectedVerse={surahLoader.selectedVerse}
+                playingAyahKey={audio.playingAyahKey}
+                currentAyahIndex={surahLoader.currentAyahIndex}
+                mushafPageSize={surahLoader.mushafPageSize}
+                totalVerses={totalVerses}
+                chatHistory={agentChat.chatHistory}
+                agentMessage={agentChat.agentMessage}
+                attachedVerse={agentChat.attachedVerse}
+                isAgentTyping={agentChat.isAgentTyping}
+                onSurahChange={(s) => surahLoader.loadSurah(s, 0)}
+                onSelectVerse={(v) => surahLoader.setSelectedVerse(v)}
+                onPlayVerse={(v) => audio.handleTogglePlayAudio(v)}
+                onAttachAgent={agentChat.handleAddVerseToAgentContext}
+                onPrevPage={surahLoader.handlePrevAyahOrPage}
+                onNextPage={surahLoader.handleNextAyahOrPage}
+                onAgentMessageChange={agentChat.setAgentMessage}
+                onClearAttachedVerse={() => agentChat.setAttachedVerse(null)}
+                onSendAgentMessage={agentChat.handleSendMessage}
+                onSelectSuggestion={(s) => agentChat.setAgentMessage(s)}
+              />
+            ) : (
+              <div className="exact-overview-cards-view">
+                {children ? (
+                  children
+                ) : (
+                  <div className="p-6 text-center text-slate-400">
+                    لا توجد بيانات إضافية لعرضها.
+                  </div>
+                )}
+              </div>
+            )
           ) : (
             <div className="exact-tab-view-wrapper">
               <DashboardTabView tab={tabs.activeTabId} />

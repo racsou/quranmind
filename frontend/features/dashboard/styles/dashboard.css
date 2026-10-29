@@ -861,3 +861,361 @@
     cursor: pointer;
   }
 }
+
+/* ========================================================= */
+/* Authentic Real Mushaf Page Styling (المصحف الشريف الملكي) */
+/* ========================================================= */
+.mushaf-real-page {
+  margin: 8px 10px;
+  border: 2px solid #d4af37;
+  outline: 1px solid #cbd5e1;
+  outline-offset: -5px;
+  border-radius: 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.mushaf-page-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px 4px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.4);
+}
+
+.mushaf-juz-tag,
+.mushaf-hizb-tag {
+  font-size: 10px;
+  color: #b45309;
+  font-weight: bold;
+}
+
+.mushaf-surah-plaque {
+  border: 1.5px solid #d4af37;
+  background: linear-gradient(180deg, #fefce8 0%, #fef9c3 100%);
+  border-radius: 6px;
+  padding: 2px 16px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.plaque-title {
+  display: block;
+  font-size: 13px;
+  font-weight: bold;
+  color: #92400e;
+  font-family: 'Amiri', 'UthmanicHafs', serif;
+}
+
+.plaque-subtitle {
+  display: block;
+  font-size: 9px;
+  color: #0f766e;
+}
+
+.mushaf-basmalah-box {
+  text-align: center;
+  padding: 8px 12px 4px;
+}
+
+.mushaf-basmalah-ornament {
+  display: inline-block;
+  color: #0f172a;
+  font-size: 15px;
+  letter-spacing: 1px;
+}
+
+.mushaf-page-body {
+  padding: 10px 14px;
+  min-height: 180px;
+  max-height: 270px;
+  overflow-y: auto;
+}
+
+.mushaf-flowing-text {
+  text-align: justify;
+  text-align-last: center;
+  line-height: 2.4;
+  font-size: 16px;
+  color: #0f172a;
+  direction: rtl;
+}
+
+.mushaf-verse-span {
+  display: inline;
+  padding: 2px 4px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.mushaf-verse-span:hover {
+  background: #f0fdf4;
+  color: #047857;
+}
+
+.mushaf-verse-span.is-selected {
+  background: #f0fdfa;
+  box-shadow: 0 0 0 1.5px #0d9488;
+  color: #0f172a;
+}
+
+.mushaf-verse-span.is-attached {
+  background: #ecfdf5;
+  box-shadow: 0 0 0 1.5px #059669;
+}
+
+.mushaf-verse-span.is-playing {
+  background: #fef9c3 !important;
+  box-shadow: 0 0 0 2px #d97706 !important;
+  color: #0f172a !important;
+  border-radius: 6px;
+}
+
+.mushaf-ayah-medallion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #b45309;
+  font-size: 13px;
+  font-weight: bold;
+  margin: 0 4px;
+}
+
+/* Selected Verse Action Dock */
+.mushaf-selected-dock {
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+.dock-verse-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dock-ayah-badge {
+  font-size: 11px;
+  font-weight: bold;
+  color: #0f766e;
+}
+
+.dock-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dock-btn-add-agent {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #0f766e;
+  border: 1px solid #0d9488;
+  border-radius: 7px;
+  padding: 6px 10px;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dock-btn-add-agent:hover {
+  background: #115e59;
+}
+
+.dock-btn-add-agent.is-active-context {
+  background: #047857;
+  border-color: #059669;
+}
+
+.dock-btn-secondary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  padding: 6px 10px;
+  color: #334155;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dock-btn-secondary:hover {
+  background: #f1f5f9;
+}
+
+.quran-tabs {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+
+.quran-tabs button {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  color: #64748b;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 8px 3px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.quran-tabs button.selected {
+  color: #0f766e;
+  border-bottom: 2px solid #0f766e;
+  font-weight: bold;
+}
+
+.numeric-title {
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: bold;
+  text-align: right;
+  padding: 8px 12px 4px;
+  flex-shrink: 0;
+}
+
+.numeric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
+.numeric-grid > div {
+  text-align: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px;
+  background: #ffffff;
+}
+
+.numeric-grid span,
+.numeric-grid small {
+  display: block;
+  font-size: 9px;
+  color: #64748b;
+}
+
+.numeric-grid strong {
+  display: block;
+  font-size: 18px;
+  margin: 2px;
+  color: #0f172a;
+}
+
+.letter-panel {
+  margin: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.letter-panel h3 {
+  font-size: 10px;
+  text-align: center;
+  margin: 0 0 6px;
+}
+
+.letter-line {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin: 4px 0;
+  direction: rtl;
+}
+
+.letter-line b {
+  font-size: 9px;
+  color: #0f766e;
+  width: 70px;
+}
+
+.letter-line i {
+  font-style: normal;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  color: #0f766e;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.notice {
+  margin: 8px 12px 10px;
+  border: 1px solid #ccfbf1;
+  background: #f0fdfa;
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  gap: 7px;
+  color: #115e59;
+  font-size: 9px;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+
+.tab-strip-actions {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.tab-strip-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab-strip-toggle-btn:hover {
+  background: #f8fafc;
+  color: #0f766e;
+}
+
+.tab-strip-toggle-btn.is-active {
+  background: #f0fdfa;
+  border-color: #0f766e;
+  color: #0f766e;
+}
+
+.exact-overview-cards-view {
+  padding: 16px;
+  overflow-y: auto;
+  height: 100%;
+}
+

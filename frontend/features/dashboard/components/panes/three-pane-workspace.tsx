@@ -6,6 +6,7 @@ import { ChatMessage } from '../../hooks/use-agent-chat'
 import { QuranPaneHeader } from './quran-pane/quran-pane-header'
 import { QuranPaneVerseList } from './quran-pane/quran-pane-verse-list'
 import { QuranPanePagination } from './quran-pane/quran-pane-pagination'
+import { QuranPaneNumericAnalysis } from './quran-pane/quran-pane-numeric-analysis'
 import { AgentPaneHeader } from './agent-pane/agent-pane-header'
 import { AgentPaneMessageList } from './agent-pane/agent-pane-message-list'
 import { AgentPaneSuggestions } from './agent-pane/agent-pane-suggestions'
@@ -27,7 +28,7 @@ interface ThreePaneWorkspaceProps {
   attachedVerse: QuranVerse | null
   isAgentTyping: boolean
   onSurahChange: (surah: number) => void
-  onSelectVerse: (verse: QuranVerse) => void
+  onSelectVerse: (verse: QuranVerse | null) => void
   onPlayVerse: (verse: QuranVerse) => void
   onAttachAgent: (verse: QuranVerse) => void
   onPrevPage: () => void
@@ -46,31 +47,7 @@ export function ThreePaneWorkspace(props: ThreePaneWorkspaceProps) {
 
   return (
     <main className="exact-main">
-      {/* 1. Quran Mushaf Viewer Pane */}
-      <section className="exact-quran">
-        <QuranPaneHeader
-          currentSurah={props.mushafSurah}
-          onSurahChange={props.onSurahChange}
-        />
-        <QuranPaneVerseList
-          displayedVerses={props.displayedVerses}
-          selectedVerse={props.selectedVerse}
-          playingAyahKey={props.playingAyahKey}
-          onSelectVerse={props.onSelectVerse}
-          onPlayVerse={props.onPlayVerse}
-          onAttachAgent={props.onAttachAgent}
-        />
-        <QuranPanePagination
-          currentSurahName={props.currentSurahMeta.name}
-          pageInfo={pageInfo}
-          canPrev={props.currentAyahIndex > 0 || props.mushafSurah > 1}
-          canNext={props.currentAyahIndex + props.mushafPageSize < props.totalVerses || props.mushafSurah < 114}
-          onPrev={props.onPrevPage}
-          onNext={props.onNextPage}
-        />
-      </section>
-
-      {/* 2. AI Research Agent Pane */}
+      {/* 1. AI Research Agent Pane (Right Side in RTL) */}
       <section className="exact-agent">
         <AgentPaneHeader />
         <AgentPaneMessageList
@@ -87,7 +64,47 @@ export function ThreePaneWorkspace(props: ThreePaneWorkspaceProps) {
         />
       </section>
 
-      {/* 3. Mathematical & Epistemic Evidence Pane */}
+      {/* 2. Authentic Flowing Mushaf & Analysis Pane (Center) */}
+      <section className="exact-quran">
+        <QuranPaneHeader
+          currentSurah={props.mushafSurah}
+          mushafPageSize={props.mushafPageSize}
+          playingAyahKey={props.playingAyahKey}
+          selectedVerse={props.selectedVerse}
+          displayedVerses={props.displayedVerses}
+          onSurahChange={props.onSurahChange}
+          onPageSizeChange={(sz) => {}}
+          onTogglePlayAudio={() => {
+            const first = props.displayedVerses[0]
+            if (first) props.onPlayVerse(props.selectedVerse || first)
+          }}
+          onOpenFullView={() => {
+            window.location.href = '/dashboard/quran'
+          }}
+        />
+        <QuranPaneVerseList
+          mushafSurah={props.mushafSurah}
+          currentSurahMeta={props.currentSurahMeta}
+          displayedVerses={props.displayedVerses}
+          selectedVerse={props.selectedVerse}
+          attachedVerse={props.attachedVerse}
+          playingAyahKey={props.playingAyahKey}
+          onSelectVerse={props.onSelectVerse}
+          onPlayVerse={props.onPlayVerse}
+          onAttachAgent={props.onAttachAgent}
+        />
+        <QuranPanePagination
+          currentSurahName={props.currentSurahMeta.name}
+          pageInfo={pageInfo}
+          canPrev={props.currentAyahIndex > 0 || props.mushafSurah > 1}
+          canNext={props.currentAyahIndex + props.mushafPageSize < props.totalVerses || props.mushafSurah < 114}
+          onPrev={props.onPrevPage}
+          onNext={props.onNextPage}
+        />
+        <QuranPaneNumericAnalysis selectedVerse={props.selectedVerse} />
+      </section>
+
+      {/* 3. Mathematical & Epistemic Evidence Pane (Left Side in RTL) */}
       <section className="exact-evidence">
         <EvidencePaneHeader />
         <EvidenceList />

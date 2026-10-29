@@ -71,20 +71,14 @@ export default function HomePage() {
             </Link>
           </nav>
 
-          {/* Action CTAs */}
+          {/* Action CTA */}
           <div className="hidden sm:flex items-center gap-3">
             <Link
-              href="/login"
-              className="text-xs font-semibold text-slate-700 hover:text-slate-950 px-3 py-2 rounded-lg transition"
-            >
-              تسجيل الدخول
-            </Link>
-            <Link
               href="/dashboard"
-              className="text-xs font-bold text-white bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 px-4 py-2.5 rounded-xl shadow-md shadow-sky-600/20 border border-sky-400/20 flex items-center gap-1.5 transition active:scale-95"
+              className="text-xs font-bold text-white bg-teal-700 hover:bg-teal-800 px-4 py-2.5 rounded-xl shadow-md border border-teal-600/30 flex items-center gap-1.5 transition active:scale-95"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              ابدأ البحث مجاناً
+              ابدأ البحث القرآني
             </Link>
           </div>
 
@@ -116,12 +110,9 @@ export default function HomePage() {
             <Link href="/dashboard/quran" onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:text-sky-600">
               المصحف الشريف
             </Link>
-            <div className="pt-2 border-t border-slate-200 flex gap-2">
-              <Link href="/login" className="flex-1 text-center py-2 bg-slate-100 rounded-lg text-slate-800">
-                تسجيل الدخول
-              </Link>
-              <Link href="/dashboard" className="flex-1 text-center py-2 bg-sky-600 font-bold rounded-lg text-white">
-                ابدأ البحث
+            <div className="pt-2 border-t border-slate-200">
+              <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="block w-full text-center py-2.5 bg-teal-700 font-bold rounded-xl text-white shadow-sm">
+                ابدأ البحث القرآني
               </Link>
             </div>
           </div>
@@ -1124,7 +1115,7 @@ export default function HomePage() {
                 <li><Link href="#pricing" className="hover:text-sky-700 transition">الوقف القرآني الرقمي</Link></li>
                 <li><Link href="#pricing" className="hover:text-sky-700 transition">رعاية تراخيص الطلاب</Link></li>
                 <li><Link href="/docs" className="hover:text-sky-700 transition">التوثيق البرمجي (Docs)</Link></li>
-                <li><Link href="/login" className="hover:text-sky-700 transition">بوابة الباحثين</Link></li>
+                <li><Link href="/dashboard" className="hover:text-teal-700 transition">بوابة الباحثين</Link></li>
               </ul>
             </div>
 
