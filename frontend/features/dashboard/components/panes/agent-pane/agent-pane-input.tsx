@@ -1,28 +1,36 @@
 'use client'
 
 import React from 'react'
-import { Send, X } from 'lucide-react'
+import { Send, Square, X } from 'lucide-react'
 import type { QuranVerse } from '@/lib/quran/quran-data'
 
 interface AgentPaneInputProps {
   message: string
   attachedVerse: QuranVerse | null
+  isTyping?: boolean
   onChange: (val: string) => void
   onClearVerse: () => void
   onSend: () => void
+  onStop?: () => void
 }
 
 export function AgentPaneInput({
   message,
   attachedVerse,
+  isTyping = false,
   onChange,
   onClearVerse,
   onSend,
+  onStop,
 }: AgentPaneInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      onSend()
+      if (isTyping) {
+        onStop?.()
+      } else {
+        onSend()
+      }
     }
   }
 
@@ -48,17 +56,29 @@ export function AgentPaneInput({
           value={message}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="اطرح استفسارك البحثي القرآني..."
+          placeholder={isTyping ? "جارٍ التوليد والاستدلال..." : "اطرح استفسارك البحثي القرآني..."}
           rows={1}
         />
-        <button
-          type="button"
-          onClick={onSend}
-          className="agent-send-btn"
-          title="إرسال"
-        >
-          <Send className="w-3.5 h-3.5" />
-        </button>
+        {isTyping ? (
+          <button
+            type="button"
+            onClick={onStop}
+            className="p-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all cursor-pointer flex items-center justify-center"
+            title="إيقاف التوليد (Stop)"
+          >
+            <Square className="w-3.5 h-3.5 fill-current" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onSend}
+            disabled={!message.trim() && !attachedVerse}
+            className="agent-send-btn disabled:opacity-40 disabled:cursor-not-allowed"
+            title="إرسال"
+          >
+            <Send className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   )

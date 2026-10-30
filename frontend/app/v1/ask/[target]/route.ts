@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { searchQuran } from '@/lib/quran/quran-data'
 import { HADITH_CORPUS } from '@/lib/hadith/mustalah-engine'
+import { executeAgentStream } from '@/lib/agent/llm-provider'
 
 export async function POST(
   req: NextRequest,
@@ -32,7 +33,7 @@ export async function POST(
 
   const stream = new ReadableStream({
     async start(controller) {
-      // 1. Initial SSE event carrying sources matching API.md
+      // 1. Initial SSE event carrying sources matching ilm API.md
       const initialPayload =
         target === 'hadith'
           ? { hadith_sources: hadithSources }
@@ -42,18 +43,31 @@ export async function POST(
 
       controller.enqueue(encoder.encode(`data: ${JSON.stringify(initialPayload)}\n\n`))
 
-      // 2. Stream answer tokens
-      const answer = `بناءً على نصوص الوحي والتحليل الاستقرائي لسؤالك حول «${question || 'التدبر والبحث'}»: يركز القرآن الكريم على اقتران الشكر بزيادة الفضل والنعم، كما في قوله تعالى: «لَئِن شَكَرْتُمْ لَأَزِيدَنَّكُمْ» (إبراهيم: 7)، ويؤكد النظم القرآني على أن الشكر عمل بالقلب واللسان والجوارح.`
-
-      const words = answer.split(' ')
-      for (const word of words) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token: word + ' ' })}\n\n`))
-        await new Promise((r) => setTimeout(r, 40))
+      try {
+        await executeAgentStream(
+          {
+            query: question || 'التدبر والبحث في آيات القرآن الكريم',
+            model: 'command-r7b-arabic',
+            provider: 'auto',
+          },
+          {
+            onToken: (tok) => {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token: tok })}\n\n`))
+            },
+            onDone: () => {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`))
+              controller.close()
+            },
+            onError: () => {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`))
+              controller.close()
+            },
+          }
+        )
+      } catch {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`))
+        controller.close()
       }
-
-      // 3. Final event closing the stream matching API.md
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`))
-      controller.close()
     },
   })
 

@@ -2,12 +2,13 @@
 
 import React from 'react'
 import type { QuranVerse, SurahMeta } from '@/lib/quran/quran-data'
-import { ChatMessage } from '../../hooks/use-agent-chat'
+import { ChatMessage, DashboardAgentSession } from '../../hooks/use-agent-chat'
 import { QuranPaneHeader } from './quran-pane/quran-pane-header'
 import { QuranPaneVerseList } from './quran-pane/quran-pane-verse-list'
 import { QuranPanePagination } from './quran-pane/quran-pane-pagination'
 import { QuranPaneNumericAnalysis } from './quran-pane/quran-pane-numeric-analysis'
 import { AgentPaneHeader } from './agent-pane/agent-pane-header'
+import { AgentPaneSessionsDrawer } from './agent-pane/agent-pane-sessions-drawer'
 import { AgentPaneMessageList } from './agent-pane/agent-pane-message-list'
 import { AgentPaneSuggestions } from './agent-pane/agent-pane-suggestions'
 import { AgentPaneInput } from './agent-pane/agent-pane-input'
@@ -27,6 +28,14 @@ interface ThreePaneWorkspaceProps {
   agentMessage: string
   attachedVerse: QuranVerse | null
   isAgentTyping: boolean
+  sessions?: DashboardAgentSession[]
+  activeSessionId?: string
+  showSessionsDrawer?: boolean
+  activeModel?: string
+  onToggleSessions?: () => void
+  onSelectSession?: (id: string) => void
+  onNewSession?: () => void
+  onDeleteSession?: (id: string) => void
   onSurahChange: (surah: number) => void
   onSelectVerse: (verse: QuranVerse | null) => void
   onPlayVerse: (verse: QuranVerse) => void
@@ -36,6 +45,7 @@ interface ThreePaneWorkspaceProps {
   onAgentMessageChange: (val: string) => void
   onClearAttachedVerse: () => void
   onSendAgentMessage: () => void
+  onStopAgentMessage?: () => void
   onSelectSuggestion: (text: string) => void
 }
 
@@ -48,8 +58,25 @@ export function ThreePaneWorkspace(props: ThreePaneWorkspaceProps) {
   return (
     <main className="exact-main">
       {/* 1. AI Research Agent Pane (Right Side in RTL) */}
-      <section className="exact-agent">
-        <AgentPaneHeader />
+      <section className="exact-agent relative">
+        <AgentPaneHeader
+          onToggleSessions={props.onToggleSessions}
+          onNewSession={props.onNewSession}
+          activeModel={props.activeModel}
+          sessionsCount={props.sessions?.length}
+        />
+
+        {/* Sessions Drawer (Toggled by Three Dashes Button) */}
+        <AgentPaneSessionsDrawer
+          isOpen={Boolean(props.showSessionsDrawer)}
+          onClose={props.onToggleSessions || (() => {})}
+          sessions={props.sessions || []}
+          activeSessionId={props.activeSessionId || ''}
+          onSelectSession={props.onSelectSession || (() => {})}
+          onNewSession={props.onNewSession || (() => {})}
+          onDeleteSession={props.onDeleteSession || (() => {})}
+        />
+
         <AgentPaneMessageList
           chatHistory={props.chatHistory}
           isAgentTyping={props.isAgentTyping}
@@ -58,9 +85,11 @@ export function ThreePaneWorkspace(props: ThreePaneWorkspaceProps) {
         <AgentPaneInput
           message={props.agentMessage}
           attachedVerse={props.attachedVerse}
+          isTyping={props.isAgentTyping}
           onChange={props.onAgentMessageChange}
           onClearVerse={props.onClearAttachedVerse}
           onSend={props.onSendAgentMessage}
+          onStop={props.onStopAgentMessage}
         />
       </section>
 
@@ -101,10 +130,9 @@ export function ThreePaneWorkspace(props: ThreePaneWorkspaceProps) {
           onPrev={props.onPrevPage}
           onNext={props.onNextPage}
         />
-        <QuranPaneNumericAnalysis selectedVerse={props.selectedVerse} />
       </section>
 
-      {/* 3. Mathematical & Epistemic Evidence Pane (Left Side in RTL) */}
+      {/* 3. Mathematical Symmetry & Scientific Evidence Pane (Left Side) */}
       <section className="exact-evidence">
         <EvidencePaneHeader />
         <EvidenceList />

@@ -6,6 +6,7 @@ import { useAgentSession } from '../hooks/use-agent-session'
 import { DEFAULT_PROMPTS } from '../config/default-prompts'
 import { AgentHeaderBar } from './agent-header-bar'
 import { AgentConfigDrawer } from './agent-config-drawer'
+import { AgentSessionsDrawer } from './agent-sessions-drawer'
 import { AgentMessageItem } from './agent-message-item'
 import { AgentPaywallBanner } from './agent-paywall-banner'
 import { AgentChatInputBar } from './agent-chat-input-bar'
@@ -14,15 +15,31 @@ export function AgentView() {
   const session = useAgentSession()
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] min-h-[640px] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm" dir="rtl">
+    <div className="relative flex flex-col h-[calc(100vh-140px)] min-h-[640px] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm" dir="rtl">
       <AgentHeaderBar
         selectedModel={session.selectedModel}
         showConfig={session.showConfig}
+        showSessions={session.showSessionsDrawer}
+        localOnline={session.localOnline}
+        localModels={session.localModels}
         onToggleConfig={() => session.setShowConfig(!session.showConfig)}
+        onToggleSessions={() => session.setShowSessionsDrawer(!session.showSessionsDrawer)}
         onModelChange={session.handleModelChange}
         onExportChat={session.handleExportChat}
         onResetChat={session.handleResetChat}
         onResetAllDefaults={session.handleResetAllDefaults}
+        onRefreshModels={() => session.fetchLocalModels()}
+      />
+
+      {/* Collapsible Sessions Drawer (Toggled by Three Dashes Menu) */}
+      <AgentSessionsDrawer
+        isOpen={session.showSessionsDrawer}
+        onClose={() => session.setShowSessionsDrawer(false)}
+        sessions={session.sessions}
+        activeSessionId={session.activeSessionId}
+        onSelectSession={session.handleSelectSession}
+        onNewSession={session.handleCreateNewSession}
+        onDeleteSession={session.handleDeleteSession}
       />
 
       {session.showConfig && (
@@ -32,7 +49,13 @@ export function AgentView() {
           temperature={session.temperature}
           setTemperature={session.setTemperature}
           selectedModel={session.selectedModel}
+          provider={session.provider}
+          setProvider={session.setProvider}
+          endpoint={session.endpoint}
+          setEndpoint={session.setEndpoint}
+          localOnline={session.localOnline}
           onClose={() => session.setShowConfig(false)}
+          onTestConnection={() => session.fetchLocalModels(session.endpoint)}
         />
       )}
 
@@ -47,29 +70,18 @@ export function AgentView() {
           />
         ))}
 
-        {session.isLoading && (
-          <div className="flex gap-3 max-w-2xl ml-auto">
-            <div className="w-9 h-9 rounded-xl bg-teal-700 flex items-center justify-center shadow-sm animate-pulse text-white">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 text-slate-800 rounded-tl-none shadow-sm space-y-2">
-              <div className="flex items-center gap-2 text-xs text-teal-700 font-semibold">
-                <div className="w-2 h-2 rounded-full bg-teal-600 animate-ping" />
-                <span>
-                  جارٍ التفكير والتحليل عبر {session.selectedModel.includes('pro') ? 'Google Gemini 2.5 Pro' : 'Google Gemini 2.5 Flash'}...
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500">
-                فحص معجم المصحف، تدقيق التناظر الحرفي، وتطبيق أوزان التطبيع البنيوي...
-              </p>
-            </div>
+        {session.isLoading && (!session.messages.length || !session.messages[session.messages.length - 1].isStreaming) && (
+          <div className="flex gap-2 max-w-xs ml-auto items-center p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-teal-600 animate-ping" />
+            <span className="w-2 h-2 rounded-full bg-teal-600 animate-pulse delay-100" />
+            <span className="w-2 h-2 rounded-full bg-teal-600 animate-pulse delay-200" />
           </div>
         )}
 
         <div ref={session.messagesEndRef} />
       </div>
 
-      {session.messages.length <= 2 && (
+      {session.messages.length <= 1 && (
         <div className="px-5 py-2.5 bg-slate-100/70 border-t border-slate-200">
           <div className="text-[11px] text-slate-500 mb-2 flex items-center gap-1.5 font-medium">
             <Sparkles className="w-3 h-3 text-teal-600" /> أسئلة بحثية مقترحة للبدء السريع:
@@ -102,6 +114,7 @@ export function AgentView() {
         isPaywalled={session.isPaywalled}
         selectedModel={session.selectedModel}
         onSubmit={session.handleSendMessage}
+        onStop={session.handleStopGeneration}
       />
     </div>
   )

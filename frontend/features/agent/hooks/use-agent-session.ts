@@ -1,70 +1,176 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { AgentChatMessage } from '../types/agent-message'
+import { AgentChatMessage, ToolStep } from '../types/agent-message'
+import { AgentSession } from '../types/agent-session'
+
+const DEFAULT_WELCOME_MESSAGE: AgentChatMessage = {
+  id: 'welcome-init',
+  role: 'assistant',
+  content:
+    'مرحباً بك في الوكيل البحثي القرآني والحديثي الذكي المطور (QuranMind Agent Studio).\n\nأنا متصل بالنماذج المحلية (Ollama) والنماذج السحابية، ومزود بأدوات قطعية لفحص 6,236 آية، المتشابهات، التناظر البنيوي، ومصطلح الحديث النبوي.\n\nكيف يمكنني مساعدتك في بحثك اليوم؟',
+  timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+  modelUsed: 'Qwen3-Hermes:latest',
+  provider: 'QuranMind Real Agent',
+}
+
+function createNewSessionObj(model: string): AgentSession {
+  const id = `session-${Date.now()}`
+  return {
+    id,
+    title: 'محادثة بحثية جديدة',
+    createdAt: new Date().toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    updatedAt: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+    modelUsed: model,
+    messages: [{ ...DEFAULT_WELCOME_MESSAGE, id: `welcome-${id}` }],
+  }
+}
 
 export function useAgentSession() {
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-2.5-flash')
+  const [selectedModel, setSelectedModel] = useState<string>('Qwen3-Hermes:latest')
   const [apiKey, setApiKey] = useState<string>('')
-  const [temperature, setTemperature] = useState<number>(0.3)
+  const [temperature, setTemperature] = useState<number>(0.2)
   const [showConfig, setShowConfig] = useState<boolean>(false)
+  const [showSessionsDrawer, setShowSessionsDrawer] = useState<boolean>(false)
   const [inputQuery, setInputQuery] = useState<string>('')
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [isPaywalled, setIsPaywalled] = useState<boolean>(false)
-  const [messages, setMessages] = useState<AgentChatMessage[]>([
-    {
-      id: 'welcome-1',
-      role: 'assistant',
-      content:
-        'مرحباً بك في الوكيل البحثي القرآني الذكي مدعوماً بنموذج **Google Gemini 2.5 Flash** والمحرك الحسابي القطعي لـ QuranMind.\n\nيمكنك توجيه أي سؤال بحثي حول آيات القرآن الكريم، التناظر الحرفي المعكوس، حساب الجُمّل، أو تحليل المصطلحات بدقة رياضية منهجية.',
-      timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-      modelUsed: 'gemini-2.5-flash',
-      provider: 'Google Gemini',
-      data: {
-        summaryPoints: [
-          'استخدام نماذج Google Gemini 2.5 Flash و Pro الرائدة في الاستدلال اللغوي المتقدم.',
-          'تكامل مباشر مع محرك التحليل البنيوي والتناظري للقرآن الكريم (Deterministic Engine).',
-          'التزام صارم بقواعد التدقيق الأكاديمي والتمييز بين النص الصريح والاجتهاد البشري.',
-        ],
-        disclaimer:
-          'QuranMind منصة بحثية أكاديمية؛ المحرك يفحص البنية اللفظية والإحصائية للنص القرآني، ولا يحل محل التفسير المعتمد لأهل العلم.',
-      },
-    },
-  ])
+
+  // Local engine state
+  const [localOnline, setLocalOnline] = useState<boolean>(false)
+  const [localModels, setLocalModels] = useState<string[]>([])
+  const [provider, setProvider] = useState<'ollama' | 'openai-compatible' | 'gemini' | 'auto'>('auto')
+  const [endpoint, setEndpoint] = useState<string>('http://localhost:11434')
+
+  // Multi-session state
+  const [sessions, setSessions] = useState<AgentSession[]>([])
+  const [activeSessionId, setActiveSessionId] = useState<string>('')
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
-  // Paywall permanently disabled for local platform (antidev)
-  useEffect(() => {
-    setIsPaywalled(false)
-  }, [])
-
+  // 1. Initial Load of sessions and preferences
   useEffect(() => {
     try {
       const savedModel = localStorage.getItem('qm_preferred_model')
       if (savedModel) setSelectedModel(savedModel)
+
       const savedKey = localStorage.getItem('qm_gemini_api_key') || localStorage.getItem('qm_custom_api_key')
       if (savedKey) setApiKey(savedKey)
+
       const savedTemp = localStorage.getItem('qm_temperature')
       if (savedTemp) setTemperature(parseFloat(savedTemp))
-      const savedHistory = localStorage.getItem('qm_agent_chat_history')
-      if (savedHistory) {
-        const parsed = JSON.parse(savedHistory)
-        if (Array.isArray(parsed) && parsed.length > 0) setMessages(parsed)
+
+      const savedProv = localStorage.getItem('qm_agent_provider')
+      if (savedProv) setProvider(savedProv as any)
+
+      const savedEp = localStorage.getItem('qm_local_endpoint')
+      if (savedEp) setEndpoint(savedEp)
+
+      // Load sessions
+      const rawSessions = localStorage.getItem('qm_agent_sessions_v2')
+      if (rawSessions) {
+        const parsed: AgentSession[] = JSON.parse(rawSessions)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSessions(parsed)
+          const savedActiveId = localStorage.getItem('qm_active_session_id')
+          const found = parsed.find((s) => s.id === savedActiveId)
+          setActiveSessionId(found ? found.id : parsed[0].id)
+          return
+        }
       }
-    } catch {}
+
+      // If no sessions exist, create initial session
+      const initial = createNewSessionObj(savedModel || 'Qwen3-Hermes:latest')
+      setSessions([initial])
+      setActiveSessionId(initial.id)
+      localStorage.setItem('qm_agent_sessions_v2', JSON.stringify([initial]))
+      localStorage.setItem('qm_active_session_id', initial.id)
+    } catch {
+      const fallback = createNewSessionObj('Qwen3-Hermes:latest')
+      setSessions([fallback])
+      setActiveSessionId(fallback.id)
+    }
   }, [])
+
+  // Auto-discover local models
+  const fetchLocalModels = async (epToTest?: string) => {
+    const targetEndpoint = epToTest || endpoint
+    try {
+      const res = await fetch(`/api/agent/models?endpoint=${encodeURIComponent(targetEndpoint)}`)
+      if (res.ok) {
+        const data = await res.json()
+        setLocalOnline(Boolean(data.online))
+        if (Array.isArray(data.models) && data.models.length > 0) {
+          setLocalModels(data.models)
+          // If current model is not set or not in local models, adopt first real local model
+          if (data.online && !localStorage.getItem('qm_preferred_model')) {
+            setSelectedModel(data.models[0])
+          }
+        }
+        return Boolean(data.online)
+      }
+    } catch {
+      setLocalOnline(false)
+    }
+    return false
+  }
+
+  useEffect(() => {
+    fetchLocalModels()
+  }, [endpoint])
+
+  const activeSession = sessions.find((s) => s.id === activeSessionId) || sessions[0]
+  const messages = activeSession ? activeSession.messages : []
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isLoading])
 
-  const saveChatHistory = (newMessages: AgentChatMessage[]) => {
-    setMessages(newMessages)
+  // Persist session changes
+  const saveSessions = (updated: AgentSession[]) => {
+    setSessions(updated)
     try {
-      localStorage.setItem('qm_agent_chat_history', JSON.stringify(newMessages))
+      localStorage.setItem('qm_agent_sessions_v2', JSON.stringify(updated))
     } catch {}
+  }
+
+  const handleCreateNewSession = () => {
+    const newSession = createNewSessionObj(selectedModel)
+    const updated = [newSession, ...sessions]
+    saveSessions(updated)
+    setActiveSessionId(newSession.id)
+    try {
+      localStorage.setItem('qm_active_session_id', newSession.id)
+    } catch {}
+  }
+
+  const handleSelectSession = (id: string) => {
+    setActiveSessionId(id)
+    try {
+      localStorage.setItem('qm_active_session_id', id)
+    } catch {}
+  }
+
+  const handleDeleteSession = (id: string) => {
+    const remaining = sessions.filter((s) => s.id !== id)
+    if (remaining.length === 0) {
+      const fresh = createNewSessionObj(selectedModel)
+      saveSessions([fresh])
+      setActiveSessionId(fresh.id)
+      try {
+        localStorage.setItem('qm_active_session_id', fresh.id)
+      } catch {}
+    } else {
+      saveSessions(remaining)
+      if (activeSessionId === id) {
+        setActiveSessionId(remaining[0].id)
+        try {
+          localStorage.setItem('qm_active_session_id', remaining[0].id)
+        } catch {}
+      }
+    }
   }
 
   const handleModelChange = (newModel: string) => {
@@ -75,46 +181,37 @@ export function useAgentSession() {
   }
 
   const handleResetChat = () => {
-    if (window.confirm('هل تريد إعادة تعيين المحادثة ومسح السجل الحالي؟')) {
-      const initial: AgentChatMessage[] = [
-        {
-          id: 'welcome-reset',
-          role: 'assistant',
-          content: `تمت إعادة تعيين جلسة الوكيل البحثي. أنا جاهز للبدء في استفسار جديد مدعوماً بنموذج ${
-            selectedModel.includes('pro') ? 'Google Gemini 2.5 Pro' : 'Google Gemini 2.5 Flash'
-          }.`,
-          timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-          modelUsed: selectedModel,
-          provider: selectedModel.startsWith('gemini') ? 'Google Gemini' : 'AI Engine',
-        },
-      ]
-      saveChatHistory(initial)
+    if (window.confirm('هل تريد إعادة تعيين المحادثة الحالية؟')) {
+      const freshMessage: AgentChatMessage = {
+        id: `welcome-reset-${Date.now()}`,
+        role: 'assistant',
+        content: `تم مسح الرسائل في هذه الجلسة. أنا جاهز للبدء من جديد عبر نموذج ${selectedModel}.`,
+        timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+        modelUsed: selectedModel,
+        provider: selectedModel.startsWith('gemini') ? 'Google Gemini' : 'Local AI Model',
+      }
+      const updated = sessions.map((s) =>
+        s.id === activeSessionId ? { ...s, messages: [freshMessage], updatedAt: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) } : s
+      )
+      saveSessions(updated)
     }
   }
 
   const handleResetAllDefaults = () => {
-    if (window.confirm('هل أنت متأكد من استعادة كافة الإعدادات الافتراضية للوكيل الذكي والنموذج؟')) {
-      setSelectedModel('gemini-2.5-flash')
+    if (window.confirm('هل أنت متأكد من استعادة كافة الإعدادات الافتراضية للوكيل والنموذج؟')) {
+      setSelectedModel('Qwen3-Hermes:latest')
       setApiKey('')
-      setTemperature(0.3)
+      setTemperature(0.2)
+      setProvider('auto')
+      setEndpoint('http://localhost:11434')
       try {
         localStorage.removeItem('qm_preferred_model')
         localStorage.removeItem('qm_gemini_api_key')
         localStorage.removeItem('qm_custom_api_key')
         localStorage.removeItem('qm_temperature')
-        localStorage.removeItem('qm_agent_chat_history')
+        localStorage.removeItem('qm_agent_provider')
+        localStorage.removeItem('qm_local_endpoint')
       } catch {}
-      const initial: AgentChatMessage[] = [
-        {
-          id: 'welcome-defaults',
-          role: 'assistant',
-          content: 'تمت استعادة كافة الإعدادات والافتراضيات بنجاح. النموذج النشط الآن هو **Google Gemini 2.5 Flash**.',
-          timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-          modelUsed: 'gemini-2.5-flash',
-          provider: 'Google Gemini',
-        },
-      ]
-      setMessages(initial)
     }
   }
 
@@ -132,18 +229,34 @@ export function useAgentSession() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `quranmind-agent-session-${Date.now()}.md`
+    a.download = `quranmind-session-${activeSession?.title || 'chat'}-${Date.now()}.md`
     a.click()
     URL.revokeObjectURL(url)
   }
 
-  const handleSendMessage = async (textToSend?: string) => {
-    if (isPaywalled) {
-      window.location.href = '/dashboard/settings?subtab=billing'
-      return
+  // Stop Generation Handler (Square Button)
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
     }
+    setIsLoading(false)
+    setSessions((prev) => {
+      const updated = prev.map((s) => {
+        if (s.id !== activeSessionId) return s
+        const msgs = s.messages.map((m) =>
+          m.isStreaming ? { ...m, isStreaming: false } : m
+        )
+        return { ...s, messages: msgs }
+      })
+      saveSessions(updated)
+      return updated
+    })
+  }
+
+  const handleSendMessage = async (textToSend?: string) => {
     const q = (textToSend || inputQuery).trim()
-    if (!q || isLoading) return
+    if (!q || isLoading || !activeSession) return
 
     const userMessage: AgentChatMessage = {
       id: `user-${Date.now()}`,
@@ -151,52 +264,218 @@ export function useAgentSession() {
       content: q,
       timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
     }
-    const updated = [...messages, userMessage]
-    saveChatHistory(updated)
+
+    const botMessageId = `bot-${Date.now()}`
+    const botPlaceholder: AgentChatMessage = {
+      id: botMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+      modelUsed: selectedModel,
+      provider: selectedModel.startsWith('gemini') ? 'Google Gemini' : 'Local AI Model',
+      toolSteps: [],
+      isStreaming: true,
+    }
+
+    // Auto-update session title if it's still default
+    let newTitle = activeSession.title
+    if (activeSession.title === 'محادثة بحثية جديدة' || activeSession.messages.length <= 1) {
+      newTitle = q.length > 36 ? `${q.slice(0, 36)}...` : q
+    }
+
+    const currentMessages = activeSession.messages
+    const updatedMessagesWithPlaceholder = [...currentMessages, userMessage, botPlaceholder]
+
+    const updatedSessionsWorking = sessions.map((s) =>
+      s.id === activeSessionId
+        ? {
+            ...s,
+            title: newTitle,
+            updatedAt: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+            messages: updatedMessagesWithPlaceholder,
+          }
+        : s
+    )
+    setSessions(updatedSessionsWorking)
     setInputQuery('')
     setIsLoading(true)
 
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     try {
-      const res = await fetch('/api/agent', {
+      const res = await fetch('/api/agent/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q, model: selectedModel, apiKey: apiKey.trim() || undefined, temperature }),
+        body: JSON.stringify({
+          query: q,
+          history: currentMessages.slice(-6).map((m) => ({ role: m.role, content: m.content })),
+          model: selectedModel,
+          provider,
+          endpoint,
+          apiKey: apiKey.trim() || undefined,
+          temperature,
+        }),
+        signal: controller.signal,
       })
-      const json = await res.json()
-      if (json.success && json.data) {
-        const d = json.data
-        let botContent = d.aiGeneratedExplanation || `**نتائج الفحص والتحليل الأكاديمي لطلب البحث:** "${d.query}"\n\n`
-        if (!d.aiGeneratedExplanation) {
-          if (d.symmetryInsight) botContent += `🔍 **تحليل التناظر الحرفي (Palindrome):**\n${d.symmetryInsight}\n\n`
-          if (d.summaryPoints?.length) botContent += `📌 **الخلاصة الإحصائية والمنهجية:**\n` + d.summaryPoints.map((p: string) => `- ${p}`).join('\n')
+
+      if (!res.ok || !res.body) {
+        throw new Error(`تعذر بدء الاتصال بالوكيل: ${res.statusText}`)
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let accumulatedText = ''
+      let toolSteps: ToolStep[] = []
+
+      while (true) {
+        if (controller.signal.aborted) {
+          try { reader.cancel() } catch {}
+          break
         }
-        const botMessage: AgentChatMessage = {
-          id: `bot-${Date.now()}`,
-          role: 'assistant',
-          content: botContent,
-          timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-          modelUsed: d.modelUsed || selectedModel,
-          provider: d.provider || (selectedModel.startsWith('gemini') ? 'Google Gemini' : 'QuranMind AI'),
-          data: d,
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const events = chunk.split('\n\n').filter((e) => e.startsWith('data: '))
+
+        for (const ev of events) {
+          const jsonStr = ev.replace('data: ', '').trim()
+          if (!jsonStr) continue
+
+          try {
+            const data = JSON.parse(jsonStr)
+
+            if (data.type === 'tool_call') {
+              const call = data.call
+              const newStep: ToolStep = {
+                id: call.id || `step-${Date.now()}`,
+                name: call.name,
+                args: call.args || {},
+                status: 'calling',
+              }
+              toolSteps = [...toolSteps, newStep]
+              setSessions((prev) =>
+                prev.map((s) =>
+                  s.id === activeSessionId
+                    ? {
+                        ...s,
+                        messages: s.messages.map((m) =>
+                          m.id === botMessageId ? { ...m, toolSteps } : m
+                        ),
+                      }
+                    : s
+                )
+              )
+            } else if (data.type === 'tool_result') {
+              const r = data.result
+              toolSteps = toolSteps.map((s) =>
+                s.name === r.name || s.id === r.id
+                  ? { ...s, summary: r.summary, data: r.data, status: 'done' }
+                  : s
+              )
+              if (!toolSteps.some((s) => s.id === r.id)) {
+                toolSteps.push({
+                  id: r.id || `step-${Date.now()}`,
+                  name: r.name,
+                  args: {},
+                  summary: r.summary,
+                  data: r.data,
+                  status: 'done',
+                })
+              }
+              setSessions((prev) =>
+                prev.map((s) =>
+                  s.id === activeSessionId
+                    ? {
+                        ...s,
+                        messages: s.messages.map((m) =>
+                          m.id === botMessageId ? { ...m, toolSteps } : m
+                        ),
+                      }
+                    : s
+                )
+              )
+            } else if (data.type === 'token') {
+              accumulatedText += data.token
+              setSessions((prev) =>
+                prev.map((s) =>
+                  s.id === activeSessionId
+                    ? {
+                        ...s,
+                        messages: s.messages.map((m) =>
+                          m.id === botMessageId ? { ...m, content: accumulatedText } : m
+                        ),
+                      }
+                    : s
+                )
+              )
+            } else if (data.type === 'done') {
+              accumulatedText = data.fullText || accumulatedText
+              const finalMessage: AgentChatMessage = {
+                id: botMessageId,
+                role: 'assistant',
+                content: accumulatedText,
+                timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+                modelUsed: selectedModel,
+                provider: selectedModel.startsWith('gemini') ? 'Google Gemini' : 'Local AI Model',
+                toolSteps,
+                isStreaming: false,
+              }
+              const finalSessions = sessions.map((s) =>
+                s.id === activeSessionId
+                  ? {
+                      ...s,
+                      title: newTitle,
+                      messages: [...currentMessages, userMessage, finalMessage],
+                    }
+                  : s
+              )
+              saveSessions(finalSessions)
+            } else if (data.type === 'error') {
+              throw new Error(data.error)
+            }
+          } catch (jsonErr) {
+            // chunk parse
+          }
         }
-        saveChatHistory([...updated, botMessage])
-      } else {
-        saveChatHistory([...updated, {
-          id: `err-${Date.now()}`,
-          role: 'assistant',
-          content: `تعذر إكمال المعالجة: ${json.error || 'حدث خطأ غير متوقع أثناء استدعاء المحرك.'}`,
-          timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-          modelUsed: selectedModel,
-        }])
       }
     } catch (err: any) {
-      saveChatHistory([...updated, {
+      if (err?.name === 'AbortError' || controller.signal.aborted) {
+        setSessions((prev) => {
+          const stopped = prev.map((s) => {
+            if (s.id !== activeSessionId) return s
+            const msgs = s.messages.map((m) =>
+              m.id === botMessageId ? { ...m, isStreaming: false } : m
+            )
+            return { ...s, messages: msgs }
+          })
+          saveSessions(stopped)
+          return stopped
+        })
+        return
+      }
+
+      const errorMessage: AgentChatMessage = {
         id: `err-${Date.now()}`,
         role: 'assistant',
-        content: `خطأ في الاتصال بالخادم: ${err?.message || 'يرجى التحقق من الشبكة وإعادة المحاولة.'}`,
+        content: `⚠️ خطأ في الاتصال بالنموذج:\n${err?.message || 'تعذر إكمال المعالجة.'}\n\nيرجى التحقق من تشغيل \`ollama serve\` أو اختيار نموذج متوفر.`,
         timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-      }])
+        modelUsed: selectedModel,
+        isStreaming: false,
+      }
+      const finalErrSessions = sessions.map((s) =>
+        s.id === activeSessionId
+          ? {
+              ...s,
+              title: newTitle,
+              messages: [...currentMessages, userMessage, errorMessage],
+            }
+          : s
+      )
+      saveSessions(finalErrSessions)
     } finally {
+      abortControllerRef.current = null
       setIsLoading(false)
     }
   }
@@ -209,18 +488,34 @@ export function useAgentSession() {
     setTemperature,
     showConfig,
     setShowConfig,
+    showSessionsDrawer,
+    setShowSessionsDrawer,
     inputQuery,
     setInputQuery,
     isLoading,
     copiedId,
     isPaywalled,
+    sessions,
+    activeSessionId,
+    activeSession,
     messages,
     messagesEndRef,
+    localOnline,
+    localModels,
+    provider,
+    setProvider,
+    endpoint,
+    setEndpoint,
+    fetchLocalModels,
+    handleCreateNewSession,
+    handleSelectSession,
+    handleDeleteSession,
     handleModelChange,
     handleResetChat,
     handleResetAllDefaults,
     handleCopy,
     handleExportChat,
     handleSendMessage,
+    handleStopGeneration,
   }
 }

@@ -74,44 +74,55 @@ export function DashboardShell({ initialTab, children }: DashboardShellProps) {
         />
 
         <div className="exact-content-viewport">
-          {tabs.activeTabId === 'overview' ? (
-            overviewMode === 'panes' ? (
-              <ThreePaneWorkspace
-                mushafSurah={surahLoader.mushafSurah}
-                currentSurahMeta={surahLoader.currentSurahMeta}
-                displayedVerses={surahLoader.displayedVerses}
-                selectedVerse={surahLoader.selectedVerse}
-                playingAyahKey={audio.playingAyahKey}
-                currentAyahIndex={surahLoader.currentAyahIndex}
-                mushafPageSize={surahLoader.mushafPageSize}
-                totalVerses={totalVerses}
-                chatHistory={agentChat.chatHistory}
-                agentMessage={agentChat.agentMessage}
-                attachedVerse={agentChat.attachedVerse}
-                isAgentTyping={agentChat.isAgentTyping}
-                onSurahChange={(s) => surahLoader.loadSurah(s, 0)}
-                onSelectVerse={(v) => surahLoader.setSelectedVerse(v)}
-                onPlayVerse={(v) => audio.handleTogglePlayAudio(v)}
-                onAttachAgent={agentChat.handleAddVerseToAgentContext}
-                onPrevPage={surahLoader.handlePrevAyahOrPage}
-                onNextPage={surahLoader.handleNextAyahOrPage}
-                onAgentMessageChange={agentChat.setAgentMessage}
-                onClearAttachedVerse={() => agentChat.setAttachedVerse(null)}
-                onSendAgentMessage={agentChat.handleSendMessage}
-                onSelectSuggestion={(s) => agentChat.setAgentMessage(s)}
-              />
-            ) : (
-              <div className="exact-overview-cards-view">
-                {children ? (
-                  children
-                ) : (
-                  <div className="p-6 text-center text-slate-400">
-                    لا توجد بيانات إضافية لعرضها.
-                  </div>
-                )}
-              </div>
-            )
-          ) : (
+          <div className={tabs.activeTabId === 'overview' && overviewMode === 'panes' ? 'h-full flex-1' : 'hidden'}>
+            <ThreePaneWorkspace
+              mushafSurah={surahLoader.mushafSurah}
+              currentSurahMeta={surahLoader.currentSurahMeta}
+              displayedVerses={surahLoader.displayedVerses}
+              selectedVerse={surahLoader.selectedVerse}
+              playingAyahKey={audio.playingAyahKey}
+              currentAyahIndex={surahLoader.currentAyahIndex}
+              mushafPageSize={surahLoader.mushafPageSize}
+              totalVerses={totalVerses}
+              chatHistory={agentChat.chatHistory}
+              agentMessage={agentChat.agentMessage}
+              attachedVerse={agentChat.attachedVerse}
+              isAgentTyping={agentChat.isAgentTyping}
+              sessions={agentChat.sessions}
+              activeSessionId={agentChat.activeSessionId}
+              showSessionsDrawer={agentChat.showSessionsDrawer}
+              activeModel={agentChat.activeModel}
+              onToggleSessions={() => agentChat.setShowSessionsDrawer(!agentChat.showSessionsDrawer)}
+              onSelectSession={agentChat.handleSelectSession}
+              onNewSession={agentChat.handleCreateNewSession}
+              onDeleteSession={agentChat.handleDeleteSession}
+              onSurahChange={(s) => surahLoader.loadSurah(s, 0)}
+              onSelectVerse={(v) => surahLoader.setSelectedVerse(v)}
+              onPlayVerse={(v) => audio.handleTogglePlayAudio(v)}
+              onAttachAgent={agentChat.handleAddVerseToAgentContext}
+              onPrevPage={surahLoader.handlePrevAyahOrPage}
+              onNextPage={surahLoader.handleNextAyahOrPage}
+              onAgentMessageChange={agentChat.setAgentMessage}
+              onClearAttachedVerse={() => agentChat.setAttachedVerse(null)}
+              onSendAgentMessage={agentChat.handleSendMessage}
+              onStopAgentMessage={agentChat.handleStopGeneration}
+              onSelectSuggestion={(s) => agentChat.setAgentMessage(s)}
+            />
+          </div>
+
+          {tabs.activeTabId === 'overview' && overviewMode === 'overview' && (
+            <div className="exact-overview-cards-view">
+              {children ? (
+                children
+              ) : (
+                <div className="p-6 text-center text-slate-400">
+                  لا توجد بيانات إضافية لعرضها.
+                </div>
+              )}
+            </div>
+          )}
+
+          {tabs.activeTabId !== 'overview' && (
             <div className="exact-tab-view-wrapper">
               <DashboardTabView tab={tabs.activeTabId} />
             </div>
